@@ -1,0 +1,6 @@
+*~
+*.log
+*.out
+*.tmp
+tmp/
+gapture
