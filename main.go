@@ -13,9 +13,9 @@ package main
 
 import (
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
-	"go/ast"
 	"runtime"
 )
 
@@ -37,25 +37,25 @@ func main() {
 		fmt.Println(s.Path.Value)
 	}
 
-	m := map[ast.Node]bool{}
-
 	ast.Inspect(f, func(n ast.Node) bool {
-		m[n] = true
-		var s string
 		switch x := n.(type) {
-		case *ast.BasicLit:
-			s = x.Value
-		case *ast.Ident:
-			s = x.Name
+		case *ast.GoStmt:
+			ast.Print(fset, x)
+		case *ast.RangeStmt:
+			ast.Print(fset, n)
+		case *ast.CommClause:
+			ast.Print(fset, n)
+		case *ast.SendStmt:
+			ast.Print(fset, n)
+		case *ast.UnaryExpr:
+			if x.Op == token.ARROW { // The receive "<-" operator.
+				ast.Print(fset, x)
+			}
 		}
-		if s != "" {
-			fmt.Printf("%s:\t%s\n", fset.Position(n.Pos()), s)
-		} else {
-			fmt.Printf(".\n")
-		}
-
 		return true
 	})
+
+	fmt.Println("------------------------------------------")
 
 	// Print the AST.
 	ast.Print(fset, f)
@@ -74,17 +74,47 @@ func gostack(c chan bool) {
 
 	fmt.Println("current:", string(buf[0:n]))
 	if c != nil {
-		c <- true
+		noop(c); c <- true; noop(1 + 2)
 	}
+}
+
+func noop(x interface{}) {
+}
+
+func noopChanBool(x chan bool) chan bool {
+	return x
 }
 
 func f() {
 	c := make(chan bool)
 	go gostack(c)
 	gostack(nil)
-	<-c
 	go gostack(c)
 	gostack(nil)
-	<-c
+
+	d := c
+
+	for flg := range noopChanBool(d) {
+		noop(flg)
+	}
+
 	gostack(nil)
+
+	// x, ok := <-c
+	// x := <-c
+	// <-c || whatever
+	//    expression based won't work because we don't know return type!
+	//      AFTER(c, <-BEFORE(c))
+	//      RECV(c)
+
+	// c <- 123
+	// c <- 1 + 2
+	//    expression based won't work because we don't know return type!
+	//      c <- BEFORE(c, 1 + 2); AFTER(c)
+	//      SEND(c, 1 + 2)
+	//    statement conversion...
+    //      var gen_sym_123 := 1 + 2
+	//      gapture.BeforeSend(c, gen_sym, "1 + 2")
+	//      c <- gen_sym_123
+	//      gapture.AfterSend(c, gen_sym, "1 + 2")
 }
