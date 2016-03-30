@@ -1,3 +1,16 @@
+go GC trace data viewer
+- https://github.com/davecheney/gcvis
+
+go AST viewer
+- https://github.com/yuroyoro/goast-viewer
+
+go error checker - checks that you checked errors
+- https://github.com/kisielk/errcheck
+
+go oracle tool
+- https://godoc.org/golang.org/x/tools/oracle
+
+------------------------------------------------------
 receives
 
   recvExpr[m], recvOk[ok] := <-expr(whatever)
@@ -78,7 +91,22 @@ go
 
   go foo(1, 2)
   go mgr.foo(1, 2)
+  go funcExpr("foo")(1, 2)
+
+
+    go func (f interface{}, a ... interface{}) {
+          BEG()
+          defer END()
+          av := []Value{}
+          for _, v := range a {
+             av = append(av, reflect.ValueOf(v))
+          }
+          reflect.ValueOf(f).Call(av)
+       } (f, 1, 2)
 
 close
 
   close(exprCh(c))
+
+    gapture_ch_sym_001 := exprCh(c)
+    close(gapture_ch_sym_001)

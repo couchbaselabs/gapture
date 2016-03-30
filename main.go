@@ -13,6 +13,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -20,45 +21,46 @@ import (
 )
 
 func main() {
-	fset := token.NewFileSet() // positions are relative to fset
+	fileSet := token.NewFileSet()
 
-	// Parse the file containing this very example
-	// but stop after processing the imports.
-	f, err := parser.ParseFile(fset, "main.go", nil, parser.ParseComments)
+	path := "."
+
+	pkgs, err := parser.ParseDir(fileSet, path, nil, parser.ParseComments)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("%v", err)
 		return
 	}
 
-	fmt.Println(fset)
+	log.Printf("fileSet: %#v", fileSet)
 
-	// Print the imports from the file's AST.
-	for _, s := range f.Imports {
-		fmt.Println(s.Path.Value)
+	for pkgName, pkg := range pkgs {
+		log.Printf("%s => %#v", pkgName, pkg)
+		for fileName, file := range pkg.Files {
+			ConvertFile(fileSet, fileName, file)
+		}
 	}
+}
 
+func ConvertFile(fileSet *token.FileSet, fName string, f *ast.File) error {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.GoStmt:
-			ast.Print(fset, x)
+			ast.Print(fileSet, x)
 		case *ast.RangeStmt:
-			ast.Print(fset, n)
+			ast.Print(fileSet, n)
 		case *ast.CommClause:
-			ast.Print(fset, n)
+			ast.Print(fileSet, n)
 		case *ast.SendStmt:
-			ast.Print(fset, n)
+			ast.Print(fileSet, n)
 		case *ast.UnaryExpr:
 			if x.Op == token.ARROW { // The receive "<-" operator.
-				ast.Print(fset, x)
+				ast.Print(fileSet, x)
 			}
 		}
 		return true
 	})
 
-	fmt.Println("------------------------------------------")
-
-	// Print the AST.
-	ast.Print(fset, f)
+	return nil
 }
 
 func mainPrev() {
@@ -99,22 +101,22 @@ func f() {
 	}
 
 	gostack(nil)
-
-	// x, ok := <-c
-	// x := <-c
-	// <-c || whatever
-	//    expression based won't work because we don't know return type!
-	//      AFTER(c, <-BEFORE(c))
-	//      RECV(c)
-
-	// c <- 123
-	// c <- 1 + 2
-	//    expression based won't work because we don't know return type!
-	//      c <- BEFORE(c, 1 + 2); AFTER(c)
-	//      SEND(c, 1 + 2)
-	//    statement conversion...
-    //      var gen_sym_123 := 1 + 2
-	//      gapture.BeforeSend(c, gen_sym, "1 + 2")
-	//      c <- gen_sym_123
-	//      gapture.AfterSend(c, gen_sym, "1 + 2")
 }
+
+// x, ok := <-c
+// x := <-c
+// <-c || whatever
+//    expression based won't work because we don't know return type!
+//      AFTER(c, <-BEFORE(c))
+//      RECV(c)
+
+// c <- 123
+// c <- 1 + 2
+//    expression based won't work because we don't know return type!
+//      c <- BEFORE(c, 1 + 2); AFTER(c)
+//      SEND(c, 1 + 2)
+//    statement conversion...
+ //      var gen_sym_123 := 1 + 2
+//      gapture.BeforeSend(c, gen_sym, "1 + 2")
+//      c <- gen_sym_123
+//      gapture.AfterSend(c, gen_sym, "1 + 2")
