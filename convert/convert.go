@@ -172,18 +172,28 @@ func FileImportsPackage(file *ast.File, pkgName string) bool {
 	return false
 }
 
-// UsesChannels returns true if the ast.Node uses channels.
+// UsesChannels returns true if the ast.Node actively uses channels.
+// That is, if the code invokes the <- operator (to send or receive),
+// uses select {}, uses close(), or ranges over a chan, then the
+// return value is true.  In contrast, a func that just passes through
+// chan instances as parameters, but doesn't actively use them, would
+// have return value of false.
 func UsesChannels(info *types.Info, topNode ast.Node) bool {
 	rv := false
 
 	ast.Inspect(topNode, func(node ast.Node) bool {
 		switch x := node.(type) {
-		case *ast.SelectStmt:
-			rv = true
 		case *ast.SendStmt:
 			rv = true
 		case *ast.UnaryExpr:
 			if x.Op == token.ARROW {
+				rv = true
+			}
+		case *ast.SelectStmt:
+			rv = true
+		case *ast.CallExpr:
+			ident, ok := x.Fun.(*ast.Ident)
+			if ok  && ident.Name == "close" {
 				rv = true
 			}
 		case *ast.RangeStmt:
