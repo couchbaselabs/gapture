@@ -39,15 +39,32 @@ type Options struct {
 	Logf    func(fmt string, v ...interface{})
 }
 
-var RuntimeStackAssignStmt *ast.AssignStmt
+// RuntimeGIDAssignStmt is an AST snippet that captures the GID.
+var RuntimeGIDAssignStmt ast.Stmt
+
+// RuntimeStackDeclStmt is an AST snippet that declares the stack var.
+var RuntimeStackDeclStmt ast.Stmt
+
+// RuntimeStackAssignStmt is an AST snippet that captures the stack.
+var RuntimeStackAssignStmt ast.Stmt
 
 func init() {
 	expr, err :=
-		parser.ParseExpr(`func() { gaptureGID, gaptureStack := gapture.Stack(0) }`)
+		parser.ParseExpr(`
+func() { gaptureGID := gapture.CurrentGID() }`)
 	if err != nil {
 		panic(err)
 	}
-	RuntimeStackAssignStmt = expr.(*ast.FuncLit).Body.List[0].(*ast.AssignStmt)
+	RuntimeGIDAssignStmt = expr.(*ast.FuncLit).Body.List[0].(ast.Stmt)
+
+	expr, err =
+		parser.ParseExpr(`
+func() { var gaptureStack string; gaptureStack := gapture.CurrentStack(0) }`)
+	if err != nil {
+		panic(err)
+	}
+	RuntimeStackDeclStmt = expr.(*ast.FuncLit).Body.List[0].(ast.Stmt)
+	RuntimeStackAssignStmt = expr.(*ast.FuncLit).Body.List[1].(ast.Stmt)
 }
 
 func ProcessDirs(paths []string, options Options) error {

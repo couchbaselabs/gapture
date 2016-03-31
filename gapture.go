@@ -10,7 +10,7 @@
 //  governing permissions and limitations under the License.
 
 // Package gapture provides runtime facilities for goroutine behavior
-// capture and playback.
+// capture and playback.  e.g., "go-capture" ==> gapture.
 package gapture
 
 import (
@@ -29,41 +29,48 @@ var ExpectedStackPrefix = []byte("goroutine ")
 
 var ExpectedStackPrefixLen = len(ExpectedStackPrefix)
 
-// Stack returns the goroutine id and stack frames.  The returned
-// stack string looks like the following (and has "\t" tabs)...
-//
-// main.foo(0x0, 0x0)
-//     /Users/steveyen/go/src/github.com/couchbaselabs/gapture/main.go:128 +0x7b
-// main.main()
-//     /Users/steveyen/go/src/github.com/couchbaselabs/gapture/main.go:27 +0x27
-//
-func Stack(skipFrames int) (GID, string) {
-	buf := make([]byte, DefaultStackBufSize)
-
+// CurrentGID returns the goroutine id.
+func CurrentGID() GID {
+	buf := make([]byte, 64)
 	n := runtime.Stack(buf, false)
+	buf = buf[0:n]
 
 	if !bytes.HasPrefix(buf, ExpectedStackPrefix) {
 		panic("unexpected stack prefix")
 	}
 	buf = buf[ExpectedStackPrefixLen:n]
 
-	gidBuf := buf[0:bytes.IndexByte(buf, ' ')] // The goroutine id.
+	gidBuf := buf[0:bytes.IndexByte(buf, ' ')]
 	gid, err := strconv.ParseInt(string(gidBuf), 10, 64)
 	if err != nil {
 		panic(err)
 	}
-	buf = buf[len(gidBuf)+1:]
 
-	stackBuf := buf[bytes.IndexByte(buf, '\n')+1:]
-	for i := 0; i <= skipFrames; i++ { // Always skip at least 1 frame.
-		stackBuf = stackBuf[bytes.IndexByte(stackBuf, '\n')+1:]
-		stackBuf = stackBuf[bytes.IndexByte(stackBuf, '\n')+1:]
+	return GID(gid)
+}
+
+// CurrentStack returns the call stack.  The returned
+// stack string looks like the following (and has "\t" tabs)...
+//
+// github.com/couchbaselabs/gapture.ExampleStack()
+// 	/Users/steveyen/go/src/github.com/couchbaselabs/gapture/gapture.go:76 +0x3a
+// main.main()
+// 	/Users/steveyen/go/src/github.com/couchbaselabs/gapture/cmd/gapture/main.go:32 +0x195
+//
+func CurrentStack(skipFrames int) string {
+	buf := make([]byte, DefaultStackBufSize)
+	n := runtime.Stack(buf, false)
+	buf = buf[0:n]
+	buf = buf[bytes.IndexByte(buf, '\n')+1:] // Skip first goroutine line.
+	for i := 0; i <= skipFrames; i++ { // Always skip 1 frame for CurrentStack().
+		buf = buf[bytes.IndexByte(buf, '\n')+1:]
+		buf = buf[bytes.IndexByte(buf, '\n')+1:]
 	}
-
-	return GID(gid), string(stackBuf)
+	return string(buf)
 }
 
 func ExampleStack() {
-	gaptureGID, gaptureStack := Stack(0)
-	fmt.Sprintf("%v => %v", gaptureGID, gaptureStack)
+	gaptureGID := CurrentGID()
+	gaptureStack := CurrentStack(0)
+	fmt.Sprintf("%v => %v\n", gaptureGID, gaptureStack)
 }
