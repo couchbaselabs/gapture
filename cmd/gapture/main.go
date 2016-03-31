@@ -14,7 +14,6 @@ package main
 import (
 	"log"
 
-	"github.com/couchbaselabs/gapture"
 	"github.com/couchbaselabs/gapture/convert"
 )
 
@@ -28,6 +27,4 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	gapture.ExampleStack()
 }

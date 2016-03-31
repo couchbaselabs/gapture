@@ -15,7 +15,6 @@ package gapture
 
 import (
 	"bytes"
-	"fmt"
 	"runtime"
 	"strconv"
 )
@@ -67,10 +66,4 @@ func CurrentStack(skipFrames int) string {
 		buf = buf[bytes.IndexByte(buf, '\n')+1:]
 	}
 	return string(buf)
-}
-
-func ExampleStack() {
-	gaptureGID := CurrentGID()
-	gaptureStack := CurrentStack(0)
-	fmt.Sprintf("%v => %v\n", gaptureGID, gaptureStack)
 }

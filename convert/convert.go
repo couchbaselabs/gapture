@@ -216,8 +216,8 @@ func UsesChannels(info *types.Info, topNode ast.Node) bool {
 
 // ----------------------------------------------------------------
 
-// A Converter implements the ast.Visitor interface to instrument the
-// code with runtime API invocations to capture goroutine/stack info.
+// A Converter implements the ast.Visitor interface to instrument code
+// with runtime API invocations to capture goroutine/stack info.
 type Converter struct {
 	parent   *Converter
 	info     *types.Info
