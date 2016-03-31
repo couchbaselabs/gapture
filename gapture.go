@@ -62,7 +62,7 @@ func CurrentStack(skipFrames int) string {
 	n := runtime.Stack(buf, false)
 	buf = buf[0:n]
 	buf = buf[bytes.IndexByte(buf, '\n')+1:] // Skip first goroutine line.
-	for i := 0; i <= skipFrames; i++ { // Always skip 1 frame for CurrentStack().
+	for i := 0; i <= skipFrames; i++ {       // Always skip 1 frame for CurrentStack().
 		buf = buf[bytes.IndexByte(buf, '\n')+1:]
 		buf = buf[bytes.IndexByte(buf, '\n')+1:]
 	}

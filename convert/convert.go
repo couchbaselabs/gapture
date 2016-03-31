@@ -123,10 +123,10 @@ func ProcessDirs(paths []string, options Options) error {
 
 			for fileName, file := range pkg.Files {
 				converter := &Converter{
-					options:  &options,
 					info:     info,
 					fileName: fileName,
 					file:     file,
+					logf:     logf,
 					node:     file,
 				}
 
@@ -200,7 +200,7 @@ func UsesChannels(info *types.Info, topNode ast.Node) bool {
 			rv = true
 		case *ast.CallExpr:
 			ident, ok := x.Fun.(*ast.Ident)
-			if ok  && ident.Name == "close" {
+			if ok && ident.Name == "close" {
 				rv = true
 			}
 		case *ast.RangeStmt:
@@ -220,28 +220,29 @@ func UsesChannels(info *types.Info, topNode ast.Node) bool {
 // code with runtime API invocations to capture goroutine/stack info.
 type Converter struct {
 	parent   *Converter
-	options  *Options
 	info     *types.Info
 	fileName string
 	file     *ast.File
+	logf     func(fmt string, v ...interface{})
 	node     ast.Node
 
-	modifications int
+	modifications int // Count of modifications made to this subtree.
 }
+
+var indent = "......................................................"
 
 func (v *Converter) Visit(node ast.Node) ast.Visitor {
 	if node != nil {
-		fmt.Printf("%s ", v.fileName)
-
+		depth := 0
 		for vv := v; vv != nil; vv = vv.parent { // Indentation by depth.
-			fmt.Print(" ")
+			depth++
 		}
 
-		fmt.Printf("%s", reflect.TypeOf(node).String())
+		msg := ""
 
 		switch x := node.(type) {
 		case *ast.FuncDecl:
-			fmt.Printf(" name: %v", x.Name)
+			msg = fmt.Sprintf(" name: %v", x.Name)
 			if UsesChannels(v.info, x) {
 				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
 				v.MarkModified()
@@ -252,23 +253,24 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				v.MarkModified()
 			}
 		case *ast.BasicLit:
-			fmt.Printf(" value: %v", x.Value)
+			msg = fmt.Sprintf(" value: %v", x.Value)
 		case ast.Expr:
 			t := v.info.TypeOf(x)
 			if t != nil {
-				fmt.Printf(" : %s", t.String())
+				msg = t.String()
 			}
 		}
 
-		fmt.Println()
+		v.logf("%s %s%s%s", v.fileName, indent[0:depth],
+			reflect.TypeOf(node).String(), msg)
 	}
 
 	return &Converter{
 		parent:   v,
-		options:  v.options,
 		info:     v.info,
 		fileName: v.fileName,
 		file:     v.file,
+		logf:     v.logf,
 		node:     node,
 	}
 }
