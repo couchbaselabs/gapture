@@ -97,8 +97,10 @@ func ProcessDirs(paths []string, options Options) error {
 			logf("types.config.Check(): %s => %v\n", pkg.Name, pkgChecked)
 
 			for fileName, file := range pkg.Files {
-				// Add import of gapture package if not already.
-				if !FileImportsPackage(file, GapturePackageName) {
+				// If the file defines func's, then add import of
+				// gapture package, if not already.
+				if FileHasFuncs(file) &&
+					!FileImportsPackage(file, GapturePackageName) {
 					file.Decls = append([]ast.Decl{
 						&ast.GenDecl{
 							Tok: token.IMPORT,
@@ -114,7 +116,7 @@ func ProcessDirs(paths []string, options Options) error {
 					}, file.Decls...)
 				}
 
-				ast.Walk(&Visitor{
+				ast.Walk(&Converter{
 					options:  &options,
 					info:     info,
 					fileName: fileName,
@@ -150,18 +152,29 @@ func FileImportsPackage(file *ast.File, pkgName string) bool {
 	return false
 }
 
+func FileHasFuncs(file *ast.File) bool {
+	for _, decl := range file.Decls {
+		_, ok := decl.(*ast.FuncDecl)
+		if ok {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ----------------------------------------------------------------
 
-type Visitor struct {
+type Converter struct {
 	options  *Options
 	info     *types.Info
 	fileName string
 	file     *ast.File
 	node     ast.Node
-	parent   *Visitor
+	parent   *Converter
 }
 
-func (v *Visitor) Visit(node ast.Node) ast.Visitor {
+func (v *Converter) Visit(node ast.Node) ast.Visitor {
 	if node != nil {
 		fmt.Printf("%s ", v.fileName)
 
@@ -188,7 +201,7 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 		fmt.Println()
 	}
 
-	return &Visitor{
+	return &Converter{
 		options:  v.options,
 		info:     v.info,
 		fileName: v.fileName,
