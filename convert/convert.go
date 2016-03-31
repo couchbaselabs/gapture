@@ -25,6 +25,8 @@ import (
 	"reflect"
 )
 
+var GapturePackageName = "github.com/couchbaselabs/gapture"
+
 // Options allows users to override the default behavior of the
 // instrumentation processing.
 type Options struct {
@@ -95,6 +97,10 @@ func ProcessDirs(paths []string, options Options) error {
 			logf("types.config.Check(): %s => %v\n", pkg.Name, pkgChecked)
 
 			for fileName, file := range pkg.Files {
+				logf("fileName: %s, imports gapture: %t",
+					fileName,
+					FileImportsPackage(file, GapturePackageName))
+
 				ast.Walk(&Visitor{
 					options:  &options,
 					info:     info,
@@ -110,6 +116,25 @@ func ProcessDirs(paths []string, options Options) error {
 
 	return nil
 }
+
+// ----------------------------------------------------------------
+
+// FileImportsPackage returns true if the file imports the given pkgName.
+func FileImportsPackage(file *ast.File, pkgName string) bool {
+	pkgNameDQ := `"` + pkgName + `"`
+
+	for _, importSpec := range file.Imports {
+		if importSpec != nil &&
+			importSpec.Path != nil &&
+			(importSpec.Path.Value == pkgName || importSpec.Path.Value == pkgNameDQ) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ----------------------------------------------------------------
 
 type Visitor struct {
 	options  *Options
@@ -135,6 +160,8 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 			fmt.Printf(" name: %v", x.Name)
 		case *ast.FuncDecl:
 			fmt.Printf(" name: %v", x.Name)
+		case *ast.BasicLit:
+			fmt.Printf(" value: %v", x.Value)
 		case ast.Expr:
 			t := v.info.TypeOf(x)
 			if t != nil {
