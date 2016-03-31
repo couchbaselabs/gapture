@@ -28,11 +28,10 @@ import (
 
 var RuntimePackageName = "github.com/couchbaselabs/gapture"
 
-// RuntimeGIDAssignStmt is an AST snippet that captures the GID.
-var RuntimeGIDAssignStmt ast.Stmt
-
-// RuntimeStackDeclStmt is an AST snippet that declares the stack var.
-var RuntimeStackDeclStmt ast.Stmt
+// RuntimeFuncPrefix is an AST snippet inserted as initialization
+// stmt's in rewritten func bodies, in order to declare required local
+// vars and in order to capture the runtime GID.
+var RuntimeFuncPrefix []ast.Stmt
 
 // RuntimeStackAssignStmt is an AST snippet that captures the stack.
 var RuntimeStackAssignStmt ast.Stmt
@@ -44,15 +43,18 @@ func() { gaptureGID := gapture.CurrentGID() }`)
 	if err != nil {
 		panic(err)
 	}
-	RuntimeGIDAssignStmt = expr.(*ast.FuncLit).Body.List[0].(ast.Stmt)
+	stmtGIDAssign := expr.(*ast.FuncLit).Body.List[0].(ast.Stmt)
 
 	expr, err =
 		parser.ParseExpr(`
-func() { var gaptureStack string; gaptureStack := gapture.CurrentStack(0) }`)
+func() { var gaptureStack string; gaptureStack = gapture.CurrentStack(0) }`)
 	if err != nil {
 		panic(err)
 	}
-	RuntimeStackDeclStmt = expr.(*ast.FuncLit).Body.List[0].(ast.Stmt)
+	stmtStackVar := expr.(*ast.FuncLit).Body.List[0].(ast.Stmt)
+
+	RuntimeFuncPrefix = []ast.Stmt{stmtStackVar, stmtGIDAssign}
+
 	RuntimeStackAssignStmt = expr.(*ast.FuncLit).Body.List[1].(ast.Stmt)
 }
 
@@ -241,12 +243,12 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 		case *ast.FuncDecl:
 			fmt.Printf(" name: %v", x.Name)
 			if UsesChannels(v.info, x) {
-				x.Body.List = InsertStmt(x.Body.List, 0, RuntimeGIDAssignStmt)
+				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
 				v.MarkModified()
 			}
 		case *ast.FuncLit:
 			if UsesChannels(v.info, x) {
-				x.Body.List = InsertStmt(x.Body.List, 0, RuntimeGIDAssignStmt)
+				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
 				v.MarkModified()
 			}
 		case *ast.BasicLit:
@@ -282,11 +284,12 @@ func (v *Converter) MarkModified() *Converter {
 	return v
 }
 
-// InsertStmt inserts a stmt into a given position in a stmt array.
-func InsertStmt(list []ast.Stmt, pos int, toInsert ast.Stmt) []ast.Stmt {
+// InsertStmts inserts the given stmt's into a given position in a
+// stmt list/array.
+func InsertStmts(list []ast.Stmt, pos int, toInsert []ast.Stmt) []ast.Stmt {
 	var rv []ast.Stmt
 	rv = append(rv, list[0:pos]...)
-	rv = append(rv, toInsert)
+	rv = append(rv, toInsert...)
 	rv = append(rv, list[pos:]...)
 	return rv
 }
