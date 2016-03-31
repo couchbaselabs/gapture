@@ -67,6 +67,8 @@ func() { var gaptureStack string; gaptureStack := gapture.CurrentStack(0) }`)
 	RuntimeStackAssignStmt = expr.(*ast.FuncLit).Body.List[1].(ast.Stmt)
 }
 
+// ------------------------------------------------------
+
 func ProcessDirs(paths []string, options Options) error {
 	logf := options.Logf
 	if logf == nil {
@@ -209,7 +211,8 @@ func UsesChannels(info *types.Info, topNode ast.Node) bool {
 
 // ----------------------------------------------------------------
 
-// A Converter implements the ast.Visitor interface.
+// A Converter implements the ast.Visitor interface to instrument the
+// code with runtime API invocations to capture goroutine/stack info.
 type Converter struct {
 	parent   *Converter
 	options  *Options
@@ -235,13 +238,13 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 		case *ast.FuncDecl:
 			fmt.Printf(" name: %v", x.Name)
 			if UsesChannels(v.info, x) {
-				x.Body.List = v.MarkModified().InsertStmt(x.Body.List, 0,
-					RuntimeGIDAssignStmt)
+				x.Body.List = v.MarkModified().
+					InsertStmt(x.Body.List, 0, RuntimeGIDAssignStmt)
 			}
 		case *ast.FuncLit:
 			if UsesChannels(v.info, x) {
-				x.Body.List = v.MarkModified().InsertStmt(x.Body.List, 0,
-					RuntimeGIDAssignStmt)
+				x.Body.List = v.MarkModified().
+					InsertStmt(x.Body.List, 0, RuntimeGIDAssignStmt)
 			}
 		case *ast.BasicLit:
 			fmt.Printf(" value: %v", x.Value)
@@ -265,6 +268,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 	}
 }
 
+// InsertStmt inserts a stmt into a given position in a stmt array.
 func (v *Converter) InsertStmt(
 	list []ast.Stmt, pos int, toInsert ast.Stmt) []ast.Stmt {
 	var rv []ast.Stmt
@@ -274,6 +278,8 @@ func (v *Converter) InsertStmt(
 	return rv
 }
 
+// MarkModified records that a converter (and its parents) have
+// modified their associated ast.Node(s).
 func (v *Converter) MarkModified() *Converter {
 	if v != nil {
 		v.modifications++
