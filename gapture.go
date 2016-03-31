@@ -12,6 +12,7 @@
 package gapture
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -123,11 +124,25 @@ func (v *PrintASTVisitor) Visit(node ast.Node) ast.Visitor {
 	return &PrintASTVisitor{options: v.options, depth: v.depth + 1, info: v.info}
 }
 
-func Stack() string {
-	buf := make([]byte, 6000000)
+func Stack() (string, string) {
+	buf := make([]byte, 4000)
+
 	n := runtime.Stack(buf, false)
-	return string(buf[0:n])
+	if !bytes.HasPrefix(buf, ExpectedStackPrefix) {
+		panic("unexpected stack prefix")
+	}
+
+	buf = buf[ExpectedStackPrefixLen:n]
+	gid := buf[0:bytes.IndexByte(buf, ' ')]
+	stack := buf[len(gid)+1:]
+	stack = stack[bytes.IndexByte(stack, '\n')+1:]
+	stack = stack[bytes.IndexByte(stack, '\n')+1:]
+	stack = stack[bytes.IndexByte(stack, '\n')+1:]
+	return string(gid), string(stack)
 }
+
+var ExpectedStackPrefix = []byte("goroutine ")
+var ExpectedStackPrefixLen = len(ExpectedStackPrefix)
 
 // Return string of Stack() looks like the following (and has "\t" tabs)...
 //
