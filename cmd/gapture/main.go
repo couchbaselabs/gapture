@@ -15,16 +15,25 @@ import (
 	"log"
 
 	"github.com/couchbaselabs/gapture"
+	"github.com/couchbaselabs/gapture/convert"
 )
 
 func main() {
-	err := gapture.ProcessDirs(
+	err := convert.ProcessDirs(
 		[]string{"."},
-		gapture.Options{
+		convert.Options{
 			OnError: func(err error) { log.Println(err) },
 			Logf:    log.Printf,
 		})
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	sampleStack()
 }
+
+func sampleStack() {
+	gid, stack := gapture.Stack(0)
+	log.Printf("gid: %d, stack: %s", gid, stack)
+}
+
