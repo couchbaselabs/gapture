@@ -13,32 +13,84 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
-	"runtime"
+	"go/types"
+	"log"
+	"reflect"
+
+	"runtime/debug"
 )
 
 func main() {
-	fileSet := token.NewFileSet()
-
 	path := "."
+
+	fileSet := token.NewFileSet()
 
 	pkgs, err := parser.ParseDir(fileSet, path, nil, parser.ParseComments)
 	if err != nil {
-		log.Fatalf("%v", err)
+		log.Fatal(err)
 		return
 	}
 
-	log.Printf("fileSet: %#v", fileSet)
-
-	for pkgName, pkg := range pkgs {
-		log.Printf("%s => %#v", pkgName, pkg)
-		for fileName, file := range pkg.Files {
-			ConvertFile(fileSet, fileName, file)
+	files := []*ast.File{}
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Files {
+			files = append(files, file)
 		}
 	}
+
+	info := types.Info{
+		Types: map[ast.Expr]types.TypeAndValue{},
+		Defs:  map[*ast.Ident]types.Object{},
+		Uses:  map[*ast.Ident]types.Object{},
+	}
+
+	config := &types.Config{
+		Error:    func(err error) { log.Println(err) },
+		Importer: importer.Default(),
+	}
+
+	pkg, err := config.Check(path, fileSet, files, &info) // Run the type checker.
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	fmt.Printf("types.config.Check(): %v\n", pkg.String())
+
+	for _, file := range files {
+		ast.Walk(&PrintASTVisitor{depth: 0, info: &info}, file)
+	}
+}
+
+type PrintASTVisitor struct {
+	depth int
+	info  *types.Info
+}
+
+func (v *PrintASTVisitor) Visit(node ast.Node) ast.Visitor {
+	if node != nil {
+		for i := 0; i < v.depth; i++ {
+			fmt.Print(" ")
+		}
+
+		fmt.Printf("%s", reflect.TypeOf(node).String())
+
+		switch node.(type) {
+		case ast.Expr:
+			t := v.info.TypeOf(node.(ast.Expr))
+			if t != nil {
+				fmt.Printf(" : %s", t.String())
+			}
+		}
+
+		fmt.Println()
+	}
+
+	return &PrintASTVisitor{depth: v.depth+1, info: v.info}
 }
 
 func ConvertFile(fileSet *token.FileSet, fName string, f *ast.File) error {
@@ -64,20 +116,14 @@ func ConvertFile(fileSet *token.FileSet, fName string, f *ast.File) error {
 }
 
 func mainPrev() {
-	gostack(nil)
-	gostack(nil)
+	gostack()
+	gostack()
 	f()
-	gostack(nil)
+	gostack()
 }
 
-func gostack(c chan bool) {
-	buf := make([]byte, 6000000)
-	n := runtime.Stack(buf, false)
-
-	fmt.Println("current:", string(buf[0:n]))
-	if c != nil {
-		noop(c); c <- true; noop(1 + 2)
-	}
+func gostack() string {
+	return string(debug.Stack())
 }
 
 func noop(x interface{}) {
@@ -89,10 +135,10 @@ func noopChanBool(x chan bool) chan bool {
 
 func f() {
 	c := make(chan bool)
-	go gostack(c)
-	gostack(nil)
-	go gostack(c)
-	gostack(nil)
+	go gostack()
+	gostack()
+	go gostack()
+	gostack()
 
 	d := c
 
@@ -100,7 +146,7 @@ func f() {
 		noop(flg)
 	}
 
-	gostack(nil)
+	gostack()
 }
 
 // x, ok := <-c
@@ -120,3 +166,12 @@ func f() {
 //      gapture.BeforeSend(c, gen_sym, "1 + 2")
 //      c <- gen_sym_123
 //      gapture.AfterSend(c, gen_sym, "1 + 2")
+
+// know that a goroutine is sending/receiving/selecting
+// know the time
+// know the channel (its len() and cap())
+// can generate a msg-id
+//
+// so, can figure out what's on the chan, by msg-id.
+// can figure out which goroutines are waiting on what chan's.
+// can figure out which goroutines are waiting to write to a chan.
