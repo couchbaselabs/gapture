@@ -9,6 +9,8 @@
 //  express or implied. See the License for the specific language
 //  governing permissions and limitations under the License.
 
+// Package gapture provides runtime facilities for goroutine behavior
+// capture and playback.
 package gapture
 
 import (
@@ -25,7 +27,14 @@ var DefaultStackBufSize = 4000
 var ExpectedStackPrefix = []byte("goroutine ")
 var ExpectedStackPrefixLen = len(ExpectedStackPrefix)
 
-// Stack returns the goroutine id and stack frames.
+// Stack returns the goroutine id and stack frames.  The returned
+// stack string looks like the following (and has "\t" tabs)...
+//
+// main.foo(0x0, 0x0)
+//     /Users/steveyen/go/src/github.com/couchbaselabs/gapture/main.go:128 +0x7b
+// main.main()
+//     /Users/steveyen/go/src/github.com/couchbaselabs/gapture/main.go:27 +0x27
+//
 func Stack(skipFrames int) (GID, string) {
 	buf := make([]byte, DefaultStackBufSize)
 
@@ -54,7 +63,6 @@ func Stack(skipFrames int) (GID, string) {
 
 // Return string of Stack() looks like the following (and has "\t" tabs)...
 //
-// goroutine 1 [running]:
 // main.foo(0x0, 0x0)
 //     /Users/steveyen/go/src/github.com/couchbaselabs/gapture/main.go:128 +0x7b
 // main.main()

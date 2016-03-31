@@ -9,6 +9,8 @@
 //  express or implied. See the License for the specific language
 //  governing permissions and limitations under the License.
 
+// Package convert provides tooling API's to instrument go code with
+// calls to gapture's runtime API.
 package convert
 
 import (
@@ -23,6 +25,8 @@ import (
 	"reflect"
 )
 
+// Options allows users to override the default behavior of the
+// instrumentation processing.
 type Options struct {
 	TokenFileSet *token.FileSet
 	TypesInfo    *types.Info
