@@ -97,6 +97,7 @@ func ProcessDirs(paths []string, options Options) error {
 			logf("types.config.Check(): %s => %v\n", pkg.Name, pkgChecked)
 
 			for fileName, file := range pkg.Files {
+				// Add import of gapture package if not already.
 				if !FileImportsPackage(file, GapturePackageName) {
 					file.Decls = append([]ast.Decl{
 						&ast.GenDecl{
