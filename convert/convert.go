@@ -83,11 +83,13 @@ func ProcessDirs(paths []string, options Options) error {
 
 			logf("types.config.Check(): %s => %v\n", pkg.Name, pkgChecked)
 
-			for _, file := range pkg.Files {
+			for fileName, file := range pkg.Files {
 				ast.Walk(&Visitor{
-					options: &options,
-					info:    info,
-					node:    file,
+					options:  &options,
+					info:     info,
+					fileName: fileName,
+					file:     file,
+					node:     file,
 				}, file)
 
 				format.Node(os.Stdout, fileSet, file)
@@ -99,14 +101,18 @@ func ProcessDirs(paths []string, options Options) error {
 }
 
 type Visitor struct {
-	options *Options
-	info    *types.Info
-	node    ast.Node
-	parent  *Visitor
+	options  *Options
+	info     *types.Info
+	fileName string
+	file     *ast.File
+	node     ast.Node
+	parent   *Visitor
 }
 
 func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 	if node != nil {
+		fmt.Printf("%s ", v.fileName)
+
 		for vv := v; vv != nil; vv = vv.parent {
 			fmt.Print(" ")
 		}
@@ -114,6 +120,10 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 		fmt.Printf("%s", reflect.TypeOf(node).String())
 
 		switch x := node.(type) {
+		case *ast.File:
+			fmt.Printf(" name: %v", x.Name)
+		case *ast.FuncDecl:
+			fmt.Printf(" name: %v", x.Name)
 		case ast.Expr:
 			t := v.info.TypeOf(x)
 			if t != nil {
@@ -125,9 +135,11 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 	}
 
 	return &Visitor{
-		options: v.options,
-		info:    v.info,
-		node:    node,
-		parent:  v,
+		options:  v.options,
+		info:     v.info,
+		fileName: v.fileName,
+		file:     v.file,
+		node:     node,
+		parent:   v,
 	}
 }

@@ -29,11 +29,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sampleStack()
+	gapture.ExampleStack()
 }
-
-func sampleStack() {
-	gid, stack := gapture.Stack(0)
-	log.Printf("gid: %d, stack: %s", gid, stack)
-}
-

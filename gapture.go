@@ -15,6 +15,7 @@ package gapture
 
 import (
 	"bytes"
+	"fmt"
 	"runtime"
 	"strconv"
 )
@@ -25,6 +26,7 @@ type GID int64
 var DefaultStackBufSize = 4000
 
 var ExpectedStackPrefix = []byte("goroutine ")
+
 var ExpectedStackPrefixLen = len(ExpectedStackPrefix)
 
 // Stack returns the goroutine id and stack frames.  The returned
@@ -59,4 +61,9 @@ func Stack(skipFrames int) (GID, string) {
 	}
 
 	return GID(gid), string(stackBuf)
+}
+
+func ExampleStack() {
+	gaptureGID, gaptureStack := Stack(0)
+	fmt.Sprintf("%v => %v", gaptureGID, gaptureStack)
 }
