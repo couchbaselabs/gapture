@@ -97,9 +97,21 @@ func ProcessDirs(paths []string, options Options) error {
 			logf("types.config.Check(): %s => %v\n", pkg.Name, pkgChecked)
 
 			for fileName, file := range pkg.Files {
-				logf("fileName: %s, imports gapture: %t",
-					fileName,
-					FileImportsPackage(file, GapturePackageName))
+				if !FileImportsPackage(file, GapturePackageName) {
+					file.Decls = append([]ast.Decl{
+						&ast.GenDecl{
+							Tok: token.IMPORT,
+							Specs: []ast.Spec{
+								&ast.ImportSpec{
+									Path: &ast.BasicLit{
+										Kind:  token.STRING,
+										Value: `"` + GapturePackageName + `"`,
+									},
+								},
+							},
+						},
+					}, file.Decls...)
+				}
 
 				ast.Walk(&Visitor{
 					options:  &options,
@@ -109,7 +121,10 @@ func ProcessDirs(paths []string, options Options) error {
 					node:     file,
 				}, file)
 
-				format.Node(os.Stdout, fileSet, file)
+				err = format.Node(os.Stdout, fileSet, file)
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 		}
 	}
@@ -119,7 +134,7 @@ func ProcessDirs(paths []string, options Options) error {
 
 // ----------------------------------------------------------------
 
-// FileImportsPackage returns true if the file imports the given pkgName.
+// FileImportsPackage returns true if a file imports a given pkgName.
 func FileImportsPackage(file *ast.File, pkgName string) bool {
 	pkgNameDQ := `"` + pkgName + `"`
 
