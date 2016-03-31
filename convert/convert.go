@@ -198,7 +198,7 @@ func UsesChannels(info *types.Info, topNode ast.Node) bool {
 			}
 		case *ast.RangeStmt:
 			t := info.TypeOf(x.X)
-			rv = rv || strings.HasPrefix(t.String(), "chan ")
+			rv = strings.HasPrefix(t.String(), "chan ")
 		}
 
 		return rv == false
