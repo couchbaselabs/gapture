@@ -28,17 +28,6 @@ import (
 
 var RuntimePackageName = "github.com/couchbaselabs/gapture"
 
-// Options allows users to override the default behavior of the
-// instrumentation processing.
-type Options struct {
-	TokenFileSet *token.FileSet
-	TypesInfo    *types.Info
-	TypesConfig  *types.Config
-
-	OnError func(error)
-	Logf    func(fmt string, v ...interface{})
-}
-
 // RuntimeGIDAssignStmt is an AST snippet that captures the GID.
 var RuntimeGIDAssignStmt ast.Stmt
 
@@ -69,6 +58,20 @@ func() { var gaptureStack string; gaptureStack := gapture.CurrentStack(0) }`)
 
 // ------------------------------------------------------
 
+// Options allows users to override the default behavior of the
+// instrumentation processing.
+type Options struct {
+	TokenFileSet *token.FileSet
+	TypesInfo    *types.Info
+	TypesConfig  *types.Config
+
+	OnError func(error)
+	Logf    func(fmt string, v ...interface{})
+}
+
+// ------------------------------------------------------
+
+// ProcessDirs instruments the code in the given directory paths.
 func ProcessDirs(paths []string, options Options) error {
 	logf := options.Logf
 	if logf == nil {
@@ -238,13 +241,13 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 		case *ast.FuncDecl:
 			fmt.Printf(" name: %v", x.Name)
 			if UsesChannels(v.info, x) {
-				x.Body.List = v.MarkModified().
-					InsertStmt(x.Body.List, 0, RuntimeGIDAssignStmt)
+				x.Body.List = InsertStmt(x.Body.List, 0, RuntimeGIDAssignStmt)
+				v.MarkModified()
 			}
 		case *ast.FuncLit:
 			if UsesChannels(v.info, x) {
-				x.Body.List = v.MarkModified().
-					InsertStmt(x.Body.List, 0, RuntimeGIDAssignStmt)
+				x.Body.List = InsertStmt(x.Body.List, 0, RuntimeGIDAssignStmt)
+				v.MarkModified()
 			}
 		case *ast.BasicLit:
 			fmt.Printf(" value: %v", x.Value)
@@ -268,16 +271,6 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 	}
 }
 
-// InsertStmt inserts a stmt into a given position in a stmt array.
-func (v *Converter) InsertStmt(
-	list []ast.Stmt, pos int, toInsert ast.Stmt) []ast.Stmt {
-	var rv []ast.Stmt
-	rv = append(rv, list[0:pos]...)
-	rv = append(rv, toInsert)
-	rv = append(rv, list[pos:]...)
-	return rv
-}
-
 // MarkModified records that a converter (and its parents) have
 // modified their associated ast.Node(s).
 func (v *Converter) MarkModified() *Converter {
@@ -287,4 +280,13 @@ func (v *Converter) MarkModified() *Converter {
 	}
 
 	return v
+}
+
+// InsertStmt inserts a stmt into a given position in a stmt array.
+func InsertStmt(list []ast.Stmt, pos int, toInsert ast.Stmt) []ast.Stmt {
+	var rv []ast.Stmt
+	rv = append(rv, list[0:pos]...)
+	rv = append(rv, toInsert)
+	rv = append(rv, list[pos:]...)
+	return rv
 }
