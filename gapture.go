@@ -60,10 +60,3 @@ func Stack(skipFrames int) (GID, string) {
 
 	return GID(gid), string(stackBuf)
 }
-
-// Return string of Stack() looks like the following (and has "\t" tabs)...
-//
-// main.foo(0x0, 0x0)
-//     /Users/steveyen/go/src/github.com/couchbaselabs/gapture/main.go:128 +0x7b
-// main.main()
-//     /Users/steveyen/go/src/github.com/couchbaselabs/gapture/main.go:27 +0x27
