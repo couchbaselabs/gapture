@@ -29,32 +29,32 @@ Statement/expression:        Does it need markup/rewrite?
   ------------------------------------------
   close(chExpr)              y   y
 
-    close(gaptureCtx.EventChan(gapture.CHAN_CLOSE, chExpr))
-    gaptureCtx.EventDone(gapture.CHAN_CLOSE, 0)
+    close(gaptureCtx.OnChan(gapture.CHAN_CLOSE, chExpr))
+    gaptureCtx.OnDone(gapture.CHAN_CLOSE, 0)
 
   ------------------------------------------
   chExpr <- msgExpr          y   y
 
-    gaptureCtx.EventChan(gapture.CHAN_SEND, chExpr) <- msgExpr
-    gaptureCtx.EventDone(gapture.CHAN_SEND, 0)
+    gaptureCtx.OnChan(gapture.CHAN_SEND, chExpr) <- msgExpr
+    gaptureCtx.OnDone(gapture.CHAN_SEND, 0)
 
   ------------------------------------------
   <-chExpr                   y   y
 
-    <-gaptureCtx.EventChan(gapture.CHAN_RECV, chExpr)
-    gaptureCtx.EventDone(gapture.CHAN_RECV, 0)
+    <-gaptureCtx.OnChan(gapture.CHAN_RECV, chExpr)
+    gaptureCtx.OnDone(gapture.CHAN_RECV, 0)
 
   ------------------------------------------
   for range chExpr { ... }   y   y   y       y
 
-    for range gaptureCtx.EventChan(gapture.CHAN_RANGE, chExpr) {
-      gaptureCtx.EventDone(gapture.CHAN_RANGE_WAIT, -1)
+    for range gaptureCtx.OnChan(gapture.CHAN_RANGE, chExpr) {
+      gaptureCtx.OnDone(gapture.CHAN_RANGE_WAIT, -1)
       ...
-         // ISSUE: any continue's in here would skip the gapture.EventBeg!!!
+         // ISSUE: any continue's in here would skip the gapture.OnChan!!!
       ...
-      gaptureCtx.EventChan(gapture.CHAN_RANGE_WAIT, nil)
+      gaptureCtx.OnChan(gapture.CHAN_RANGE_WAIT, nil)
     }
-    gaptureCtx.EventDone(gapture.CHAN_RANGE, 0)
+    gaptureCtx.OnDone(gapture.CHAN_RANGE, 0)
 
   ------------------------------------------
   select {                   y   y+ (every caseStmt and default)
@@ -64,14 +64,14 @@ Statement/expression:        Does it need markup/rewrite?
   }
 
     select {
-      case msg := <-gaptureCtx.EventChan(gapture.CHAN_SELECT_RECV, recvCh):
-        gaptureCtx.EventDone(gapture.CHAN_SELECT, 0)
+      case msg := <-gaptureCtx.OnChan(gapture.CHAN_SELECT_RECV, recvCh):
+        gaptureCtx.OnDone(gapture.CHAN_SELECT, 0)
 
-      case gaptureCtx.EventChan(gapture.CHAN_SELECT_SEND, sendCh) <- msg:
-        gaptureCtx.EventDone(gapture.CHAN_SELECT, 1)
+      case gaptureCtx.OnChan(gapture.CHAN_SELECT_SEND, sendCh) <- msg:
+        gaptureCtx.OnDone(gapture.CHAN_SELECT, 1)
 
       default:
-        gaptureCtx.EventDone(gapture.CHAN_SELECT, -1)
+        gaptureCtx.OnDone(gapture.CHAN_SELECT, -1)
     }
 
   ------------------------------------------
