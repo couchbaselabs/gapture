@@ -125,7 +125,7 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 }
 
 func Stack() (string, string) {
-	buf := make([]byte, 4000)
+	buf := make([]byte, DefaultStackBytesLen)
 
 	n := runtime.Stack(buf, false)
 	if !bytes.HasPrefix(buf, ExpectedStackPrefix) {
@@ -133,16 +133,18 @@ func Stack() (string, string) {
 	}
 
 	buf = buf[ExpectedStackPrefixLen:n]
-	gid := buf[0:bytes.IndexByte(buf, ' ')]
+	gid := buf[0:bytes.IndexByte(buf, ' ')] // The goroutine id.
 	stack := buf[len(gid)+1:]
 	stack = stack[bytes.IndexByte(stack, '\n')+1:]
 	stack = stack[bytes.IndexByte(stack, '\n')+1:]
 	stack = stack[bytes.IndexByte(stack, '\n')+1:]
+
 	return string(gid), string(stack)
 }
 
 var ExpectedStackPrefix = []byte("goroutine ")
 var ExpectedStackPrefixLen = len(ExpectedStackPrefix)
+var DefaultStackBytesLen = 4000
 
 // Return string of Stack() looks like the following (and has "\t" tabs)...
 //
