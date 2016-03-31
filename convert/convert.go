@@ -125,9 +125,9 @@ func ProcessDirs(paths []string, options Options) error {
 
 				ast.Walk(converter, file)
 
-				// If the file had conversions, then add import of the
+				// If the file had modifications, then add import of the
 				// runtime package, if not already.
-				if converter.conversions > 0 &&
+				if converter.modifications > 0 &&
 					!FileImportsPackage(file, RuntimePackageName) {
 					file.Decls = append([]ast.Decl{
 						&ast.GenDecl{
@@ -209,6 +209,7 @@ func UsesChannels(info *types.Info, topNode ast.Node) bool {
 
 // ----------------------------------------------------------------
 
+// A Converter implements the ast.Visitor interface.
 type Converter struct {
 	parent   *Converter
 	options  *Options
@@ -217,16 +218,7 @@ type Converter struct {
 	file     *ast.File
 	node     ast.Node
 
-	conversions int
-}
-
-func (v *Converter) MarkConversion() {
-	if v == nil {
-		return
-	}
-
-	v.conversions++
-	v.parent.MarkConversion()
+	modifications int
 }
 
 func (v *Converter) Visit(node ast.Node) ast.Visitor {
@@ -243,11 +235,13 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 		case *ast.FuncDecl:
 			fmt.Printf(" name: %v", x.Name)
 			if UsesChannels(v.info, x) {
-				fmt.Printf(" uses-channels")
+				x.Body.List = v.MarkModified().InsertStmt(x.Body.List, 0,
+					RuntimeGIDAssignStmt)
 			}
 		case *ast.FuncLit:
 			if UsesChannels(v.info, x) {
-				fmt.Printf(" uses-channels")
+				x.Body.List = v.MarkModified().InsertStmt(x.Body.List, 0,
+					RuntimeGIDAssignStmt)
 			}
 		case *ast.BasicLit:
 			fmt.Printf(" value: %v", x.Value)
@@ -269,4 +263,22 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 		file:     v.file,
 		node:     node,
 	}
+}
+
+func (v *Converter) InsertStmt(
+	list []ast.Stmt, pos int, toInsert ast.Stmt) []ast.Stmt {
+	var rv []ast.Stmt
+	rv = append(rv, list[0:pos]...)
+	rv = append(rv, toInsert)
+	rv = append(rv, list[pos:]...)
+	return rv
+}
+
+func (v *Converter) MarkModified() *Converter {
+	if v != nil {
+		v.modifications++
+		v.parent.MarkModified() // Recursively mark our parents/ancestors.
+	}
+
+	return v
 }

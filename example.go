@@ -16,8 +16,10 @@ func ExampleWithChan() {
 	ch := make(chan bool)
 	close(ch)
 
-	rv := false
-	for t := range ch {
-		rv = rv || t
-	}
+	func () {
+		rv := false
+		for t := range ch {
+			rv = rv || t
+		}
+	}()
 }
