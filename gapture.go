@@ -82,7 +82,7 @@ func ProcessDirs(paths []string, options Options) error {
 			logf("types.config.Check(): %s => %v\n", pkg.Name, pkgChecked)
 
 			for _, file := range pkg.Files {
-				ast.Walk(&PrintASTVisitor{
+				ast.Walk(&Visitor{
 					options: &options,
 					depth:   0,
 					info:    info,
@@ -96,13 +96,13 @@ func ProcessDirs(paths []string, options Options) error {
 	return nil
 }
 
-type PrintASTVisitor struct {
+type Visitor struct {
 	options *Options
 	depth   int
 	info    *types.Info
 }
 
-func (v *PrintASTVisitor) Visit(node ast.Node) ast.Visitor {
+func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 	if node != nil {
 		for i := 0; i < v.depth; i++ {
 			fmt.Print(" ")
@@ -121,7 +121,7 @@ func (v *PrintASTVisitor) Visit(node ast.Node) ast.Visitor {
 		fmt.Println()
 	}
 
-	return &PrintASTVisitor{options: v.options, depth: v.depth + 1, info: v.info}
+	return &Visitor{options: v.options, depth: v.depth + 1, info: v.info}
 }
 
 func Stack() (string, string) {
