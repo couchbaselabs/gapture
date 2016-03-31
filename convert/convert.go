@@ -36,6 +36,17 @@ type Options struct {
 	Logf    func(fmt string, v ...interface{})
 }
 
+var GaptureStackAssignStmt *ast.AssignStmt
+
+func init() {
+	expr, err := parser.ParseExpr(`func() { gaptureGID, gaptureStack := gapture.Stack(0) }`)
+	if err != nil {
+		panic(err)
+	}
+	GaptureStackAssignStmt = expr.(*ast.FuncLit).Body.List[0].(*ast.AssignStmt)
+	fmt.Printf("GaptureStackAssignStmt: %#v\n", GaptureStackAssignStmt)
+}
+
 func ProcessDirs(paths []string, options Options) error {
 	logf := options.Logf
 	if logf == nil {
