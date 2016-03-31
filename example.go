@@ -22,4 +22,11 @@ func ExampleWithChan() {
 			rv = rv || t
 		}
 	}()
+
+	var z interface{}
+	z = ch
+	ch2 := z.(chan bool)
+	if ch2 == ch {
+		fmt.Printf("yay")
+	}
 }

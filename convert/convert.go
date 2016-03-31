@@ -252,6 +252,8 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
 				v.MarkModified()
 			}
+		case *ast.Ident:
+			msg = fmt.Sprintf(" name: %s", x.Name)
 		case *ast.BasicLit:
 			msg = fmt.Sprintf(" value: %v", x.Value)
 		case ast.Expr:
