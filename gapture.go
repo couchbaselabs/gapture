@@ -35,6 +35,9 @@ type Options struct {
 
 func ProcessDirs(paths []string, options Options) error {
 	logf := options.Logf
+	if logf == nil {
+		logf = func(fmt string, v ...interface{}) { /* noop */ }
+	}
 
 	fileSet := options.TokenFileSet
 	if fileSet == nil {
@@ -80,8 +83,8 @@ func ProcessDirs(paths []string, options Options) error {
 			for _, file := range pkg.Files {
 				ast.Walk(&PrintASTVisitor{
 					options: &options,
-					depth: 0,
-					info: info,
+					depth:   0,
+					info:    info,
 				}, file)
 
 				format.Node(os.Stdout, fileSet, file)
@@ -117,7 +120,7 @@ func (v *PrintASTVisitor) Visit(node ast.Node) ast.Visitor {
 		fmt.Println()
 	}
 
-	return &PrintASTVisitor{options: v.options, depth: v.depth+1, info: v.info}
+	return &PrintASTVisitor{options: v.options, depth: v.depth + 1, info: v.info}
 }
 
 func Stack() string {
@@ -147,7 +150,7 @@ func Stack() string {
 //      c <- BEFORE(c, 1 + 2); AFTER(c)
 //      SEND(c, 1 + 2)
 //    statement conversion...
- //      var gen_sym_123 := 1 + 2
+//      var gen_sym_123 := 1 + 2
 //      gapture.BeforeSend(c, gen_sym, "1 + 2")
 //      c <- gen_sym_123
 //      gapture.AfterSend(c, gen_sym, "1 + 2")
@@ -178,5 +181,3 @@ func Stack() string {
 // cgo call                   y   y
 //
 // panic(...)                 n   n
-
-
