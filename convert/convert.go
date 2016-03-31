@@ -257,7 +257,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 		case ast.Expr:
 			t := v.info.TypeOf(x)
 			if t != nil {
-				msg = t.String()
+				msg = fmt.Sprintf(" type: %s", t.String())
 			}
 		}
 
