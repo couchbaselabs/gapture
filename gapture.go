@@ -22,7 +22,7 @@ import (
 // A goroutine id.
 type GID int64
 
-var DefaultStackBufSize = 4000
+var DefaultStackBufSize = 1000
 
 var ExpectedStackPrefix = []byte("goroutine ")
 
