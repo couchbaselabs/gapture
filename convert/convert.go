@@ -456,7 +456,22 @@ func (v *Converter) PartOfSelectCommClause() (*ast.CommClause, int) {
 	for v != nil {
 		commClause, ok := v.node.(*ast.CommClause)
 		if ok {
-			return commClause, 0
+			commClausePos := 0
+
+			if v.parent != nil &&
+				v.parent.node != nil {
+				blockStmt, ok := v.parent.node.(*ast.BlockStmt)
+				if ok {
+					for i, cc := range blockStmt.List {
+						if cc == commClause {
+							commClausePos = i
+							break
+						}
+					}
+				}
+			}
+
+			return commClause, commClausePos
 		}
 
 		// If we see a Stmt while walking up our parent/ancestry, and
