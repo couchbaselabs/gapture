@@ -409,6 +409,40 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				}
 			}
 
+		case *ast.RangeStmt:
+			// Convert:
+			//   for msg := range chExpr { ... }
+			// Info:
+			//   for msg := range gaptureCtx.OnRangeChan(chExpr).(chan foo) {
+			//     gaptureCtx.OnRangeChanBody()
+			//     ...
+			//     ISSUE: any continue's in here would skip the gapture.OnChan!!!
+			//     ...
+			//     gaptureCtx.OnRangeChanBodyLoop()
+			//   }
+			//   gaptureCtx.OnRangeChanDone()
+			//
+			xTypeString := vChild.info.TypeOf(x.X).String()
+			if strings.HasPrefix(xTypeString, "chan ") {
+				x.X = &ast.TypeAssertExpr{
+					X: &ast.CallExpr{
+						Fun:  &ast.Ident{Name: "gaptureCtx.OnRangeChan"},
+						Args: []ast.Expr{x.X},
+					},
+					Type: &ast.Ident{Name: xTypeString},
+				}
+
+				vChild.InsertStmtsRelative(1, []ast.Stmt{
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun: &ast.Ident{Name: "gaptureCtx.OnRangeChanDone"},
+						},
+					},
+				})
+
+				vChild.MarkModified()
+			}
+
 		case *ast.Ident:
 			msg = fmt.Sprintf(" name: %s", x.Name)
 		case *ast.BasicLit:

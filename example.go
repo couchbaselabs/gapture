@@ -23,9 +23,7 @@ func ExampleWithChan() {
 		for t := range ch {
 			rv = rv || t || b
 		}
-	}()
 
-	func() {
 		select {
 		case msg := <-ch:
 			b = msg
@@ -33,6 +31,10 @@ func ExampleWithChan() {
 			b = false
 		default:
 			b = true
+		}
+
+		for msg := range ch {
+			b = msg
 		}
 	}()
 
