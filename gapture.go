@@ -114,73 +114,98 @@ func (gctx *GCtx) EnsureGID() {
 	}
 }
 
-// ---------------------------------------------------------------
-
-func (gctx *GCtx) OnChanClose(ch interface{}) interface{} {
+func (gctx *GCtx) PushSimpleOpCtx(op Op, ch interface{}) interface{} {
 	gctx.EnsureGID()
+	gctx.OpCtxs = append(gctx.OpCtxs, []OpCtx{OpCtx{
+		Op:    op,
+		Stack: CurrentStack(2),
+		Ch:    ch,
+	}})
 	return ch
 }
 
+func (gctx *GCtx) PopOpCtxs() {
+	top := len(gctx.OpCtxs)-1
+	gctx.OpCtxs[top] = nil
+	gctx.OpCtxs = gctx.OpCtxs[0:top]
+}
+
+// ---------------------------------------------------------------
+
+func (gctx *GCtx) OnChanClose(ch interface{}) interface{} {
+	return gctx.PushSimpleOpCtx(OP_CH_CLOSE, ch)
+}
+
 func (gctx *GCtx) OnChanCloseDone() {
+	gctx.PopOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanSend(ch interface{}) interface{} {
-	gctx.EnsureGID()
-	return ch
+	return gctx.PushSimpleOpCtx(OP_CH_SEND, ch)
 }
 
 func (gctx *GCtx) OnChanSendDone() {
+	gctx.PopOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
-	gctx.EnsureGID()
-	return ch
+	return gctx.PushSimpleOpCtx(OP_CH_RECV, ch)
 }
 
 func (gctx *GCtx) OnChanRecvDone() {
+	gctx.PopOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnSelectChanSend(caseNum int, ch interface{}) interface{} {
 	gctx.EnsureGID()
+	// TODO.
 	return ch
 }
 
 func (gctx *GCtx) OnSelectChanSendDone(caseNum int) {
+	gctx.PopOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnSelectChanRecv(caseNum int, ch interface{}) interface{} {
 	gctx.EnsureGID()
+	// TODO.
 	return ch
 }
 
 func (gctx *GCtx) OnSelectChanRecvDone(caseNum int) {
+	gctx.PopOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnSelectDefault() {
+	gctx.PopOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnRangeChan(ch interface{}) interface{} {
 	gctx.EnsureGID()
+	// TODO.
 	return ch
 }
 
 func (gctx *GCtx) OnRangeChanBody() {
+	// TODO.
 }
 
 func (gctx *GCtx) OnRangeChanBodyContinue() {
+	// TODO.
 }
 
 func (gctx *GCtx) OnRangeChanDone() {
+	gctx.PopOpCtxs()
 }
