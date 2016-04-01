@@ -107,7 +107,17 @@ func CurrentStack(skipFrames int) string {
 
 // ---------------------------------------------------------------
 
+// EnsureGID captures the current GID, if not already.
+func (gctx *GCtx) EnsureGID() {
+	if gctx.GID <= 0 {
+		gctx.GID = CurrentGID()
+	}
+}
+
+// ---------------------------------------------------------------
+
 func (gctx *GCtx) OnChanClose(ch interface{}) interface{} {
+	gctx.EnsureGID()
 	return ch
 }
 
@@ -117,6 +127,7 @@ func (gctx *GCtx) OnChanCloseDone() {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanSend(ch interface{}) interface{} {
+	gctx.EnsureGID()
 	return ch
 }
 
@@ -126,6 +137,7 @@ func (gctx *GCtx) OnChanSendDone() {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
+	gctx.EnsureGID()
 	return ch
 }
 
@@ -135,6 +147,7 @@ func (gctx *GCtx) OnChanRecvDone() {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnSelectChanSend(caseNum int, ch interface{}) interface{} {
+	gctx.EnsureGID()
 	return ch
 }
 
@@ -144,6 +157,7 @@ func (gctx *GCtx) OnSelectChanSendDone(caseNum int) {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnSelectChanRecv(caseNum int, ch interface{}) interface{} {
+	gctx.EnsureGID()
 	return ch
 }
 
@@ -158,6 +172,7 @@ func (gctx *GCtx) OnSelectDefault() {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnRangeChan(ch interface{}) interface{} {
+	gctx.EnsureGID()
 	return ch
 }
 
