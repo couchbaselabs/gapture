@@ -252,6 +252,40 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
 				v.MarkModified()
 			}
+		case *ast.CallExpr:
+			ident, ok := x.Fun.(*ast.Ident)
+			if ok && ident.Name == "close" && len(x.Args) == 1 {
+				// Convert:
+				//   close(chExpr)
+				// Info:
+				//   close(gaptureCtx.OnChanClose(chExpr).(chan foo))
+				//   gaptureCtx.OnChanCloseDone()
+				//
+				x.Args = []ast.Expr{
+					&ast.TypeAssertExpr{
+						X: &ast.CallExpr{
+							Fun: &ast.Ident{
+								Name: "gaptureCtx.OnChanClose",
+							},
+							Args: x.Args,
+						},
+						Type: &ast.Ident{
+							Name: v.info.TypeOf(x.Args[0]).String(),
+						},
+					},
+				}
+				v.InsertStmtsAfter([]ast.Stmt{
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun: &ast.Ident{
+								Name: "gaptureCtx.OnChanCloseDone",
+							},
+						},
+					},
+				})
+				v.MarkModified()
+			}
+
 		case *ast.Ident:
 			msg = fmt.Sprintf(" name: %s", x.Name)
 		case *ast.BasicLit:
@@ -286,6 +320,40 @@ func (v *Converter) MarkModified() *Converter {
 	}
 
 	return v
+}
+
+// InsertStmtsAfter inserts the given stmt's after the stmt
+// represented by the given converter node instance.
+func (v *Converter) InsertStmtsAfter(toInsert []ast.Stmt) {
+	var blockStmt *ast.BlockStmt
+	var vLast *Converter
+
+	for v != nil { // Find the enclosing blockStmt.
+		bs, ok := v.node.(*ast.BlockStmt)
+		if ok {
+			blockStmt = bs
+			break
+		}
+		vLast = v
+		v = v.parent
+	}
+
+	if blockStmt == nil {
+		panic("AddCallStmtAfter could not find enclosing blockStmt")
+	}
+
+	idx := -1 // Find our position in the enclosing blockStmt.
+	for i, stmt := range blockStmt.List {
+		if stmt == vLast.node {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		panic("AddCallStmtAfter could not find stmt in blockStmt")
+	}
+
+	blockStmt.List = InsertStmts(blockStmt.List, idx+1, toInsert)
 }
 
 // InsertStmts inserts the given stmt's into a given position in a
