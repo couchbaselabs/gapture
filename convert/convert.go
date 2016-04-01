@@ -232,6 +232,15 @@ type Converter struct {
 var indent = "......................................................"
 
 func (v *Converter) Visit(node ast.Node) ast.Visitor {
+	vChild := &Converter{
+		parent:   v,
+		info:     v.info,
+		fileName: v.fileName,
+		file:     v.file,
+		logf:     v.logf,
+		node:     node,
+	}
+
 	if node != nil {
 		depth := 0
 		for vv := v; vv != nil; vv = vv.parent { // Indentation by depth.
@@ -243,21 +252,21 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 		switch x := node.(type) {
 		case *ast.FuncDecl:
 			msg = fmt.Sprintf(" name: %v", x.Name)
-			if UsesChannels(v.info, x) {
+			if UsesChannels(vChild.info, x) {
 				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
-				v.MarkModified()
+				vChild.MarkModified()
 			}
 		case *ast.FuncLit:
-			if UsesChannels(v.info, x) {
+			if UsesChannels(vChild.info, x) {
 				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
-				v.MarkModified()
+				vChild.MarkModified()
 			}
 		case *ast.CallExpr:
 			ident, ok := x.Fun.(*ast.Ident)
 			if ok && ident.Name == "close" && len(x.Args) == 1 {
 				// Convert:
 				//   close(chExpr)
-				// Info:
+				// Into:
 				//   close(gaptureCtx.OnChanClose(chExpr).(chan foo))
 				//   gaptureCtx.OnChanCloseDone()
 				//
@@ -270,11 +279,11 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 							Args: x.Args,
 						},
 						Type: &ast.Ident{
-							Name: v.info.TypeOf(x.Args[0]).String(),
+							Name: vChild.info.TypeOf(x.Args[0]).String(),
 						},
 					},
 				}
-				v.InsertStmtsAfter([]ast.Stmt{
+				vChild.InsertStmtsAfter([]ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
 							Fun: &ast.Ident{
@@ -283,15 +292,44 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 						},
 					},
 				})
-				v.MarkModified()
+				vChild.MarkModified()
 			}
+		case *ast.SendStmt:
+			// Convert:
+			//   chExpr <- msgExpr
+			// Into:
+			//   gaptureCtx.OnChanSend(chExpr).(chan foo) <- msgExpr
+			//   gaptureCtx.OnChanSendDone(0)
+			//
+			x.Chan = &ast.TypeAssertExpr{
+				X: &ast.CallExpr{
+					Fun: &ast.Ident{
+						Name: "gaptureCtx.OnChanSend",
+					},
+					Args: []ast.Expr{ x.Chan },
+				},
+				Type: &ast.Ident{
+					Name: vChild.info.TypeOf(x.Chan).String(),
+				},
+			}
+			vChild.InsertStmtsAfter([]ast.Stmt{
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: &ast.Ident{
+							Name: "gaptureCtx.OnChanSendDone",
+						},
+						Args: []ast.Expr{ &ast.Ident{ Name: "0" } },
+					},
+				},
+			})
+			vChild.MarkModified()
 
 		case *ast.Ident:
 			msg = fmt.Sprintf(" name: %s", x.Name)
 		case *ast.BasicLit:
 			msg = fmt.Sprintf(" value: %v", x.Value)
 		case ast.Expr:
-			t := v.info.TypeOf(x)
+			t := vChild.info.TypeOf(x)
 			if t != nil {
 				msg = fmt.Sprintf(" type: %s", t.String())
 			}
@@ -301,14 +339,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			reflect.TypeOf(node).String(), msg)
 	}
 
-	return &Converter{
-		parent:   v,
-		info:     v.info,
-		fileName: v.fileName,
-		file:     v.file,
-		logf:     v.logf,
-		node:     node,
-	}
+	return vChild
 }
 
 // MarkModified records that a converter (and its parents) have
@@ -322,35 +353,38 @@ func (v *Converter) MarkModified() *Converter {
 	return v
 }
 
+func (v *Converter) HasParentNode(node ast.Node) bool {
+	for v != nil {
+		if v.node == node {
+			return true
+		}
+		v = v.parent
+	}
+
+	return false
+}
+
 // InsertStmtsAfter inserts the given stmt's after the stmt
 // represented by the given converter node instance.
 func (v *Converter) InsertStmtsAfter(toInsert []ast.Stmt) {
 	var blockStmt *ast.BlockStmt
-	var vLast *Converter
-
-	for v != nil { // Find the enclosing blockStmt.
-		bs, ok := v.node.(*ast.BlockStmt)
+	for vc := v; vc != nil; vc = vc.parent { // Find the enclosing blockStmt.
+		bs, ok := vc.node.(*ast.BlockStmt)
 		if ok {
 			blockStmt = bs
 			break
 		}
-		vLast = v
-		v = v.parent
 	}
-
 	if blockStmt == nil {
 		panic("AddCallStmtAfter could not find enclosing blockStmt")
 	}
 
 	idx := -1 // Find our position in the enclosing blockStmt.
 	for i, stmt := range blockStmt.List {
-		if stmt == vLast.node {
+		if v.HasParentNode(stmt) {
 			idx = i
 			break
 		}
-	}
-	if idx < 0 {
-		panic("AddCallStmtAfter could not find stmt in blockStmt")
 	}
 
 	blockStmt.List = InsertStmts(blockStmt.List, idx+1, toInsert)

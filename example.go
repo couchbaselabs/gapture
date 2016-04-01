@@ -13,7 +13,8 @@ func Example() {
 }
 
 func ExampleWithChan() {
-	ch := make(chan bool)
+	ch := make(chan bool, 1)
+	ch <- true
 	close(ch)
 
 	func() {
