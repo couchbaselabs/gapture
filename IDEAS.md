@@ -22,39 +22,30 @@ but, having a global map could be slow.
 a sharded map might help.
 
 ------------------------------------------------------------
-Statement/expression:        Does it need markup/rewrite?
-                             beg end bodyBeg bodyEnd
-  go funcExpr(...)           n   n
+Statement/expression conversions:
 
   ------------------------------------------
-  close(chExpr)              y   y
-
-    close(gaptureCtx.OnChan(gapture.CHAN_CLOSE, chExpr))
-    gaptureCtx.OnDone(gapture.CHAN_CLOSE, 0)
-
-  ------------------------------------------
-  chExpr <- msgExpr          y   y
-
-    gaptureCtx.OnChan(gapture.CHAN_SEND, chExpr) <- msgExpr
-    gaptureCtx.OnDone(gapture.CHAN_SEND, 0)
+  Convert:
+	close(chExpr)
+  Into:
+	close(gaptureGCtx.OnChanClose(chExpr).(chan foo))
+	gaptureGCtx.OnChanCloseDone()
 
   ------------------------------------------
-  <-chExpr                   y   y
-
-    <-gaptureCtx.OnChan(gapture.CHAN_RECV, chExpr)
-    gaptureCtx.OnDone(gapture.CHAN_RECV, 0)
+  Convert:
+    chExpr <- msgExpr
+  Into:
+    gaptureGCtx.OnChanSend(chExpr).(chan foo) <- msgExpr
+    gaptureGCtx.OnChanSendDone()
 
   ------------------------------------------
-  for range chExpr { ... }   y   y   y       y
+  Convert:
+    <-chExpr
+  Into:
+    <-gaptureCtx.OnChanRecv(chExpr).(chan foo)
+    gaptureCtx.OnChanRecvDone()
 
-    for range gaptureCtx.OnChan(gapture.CHAN_RANGE, chExpr) {
-      gaptureCtx.OnDone(gapture.CHAN_RANGE_WAIT, -1)
-      ...
-         // ISSUE: any continue's in here would skip the gapture.OnChan!!!
-      ...
-      gaptureCtx.OnChan(gapture.CHAN_RANGE_WAIT, nil)
-    }
-    gaptureCtx.OnDone(gapture.CHAN_RANGE, 0)
+  NOTE: We don't handle general recv expressions (ex: <-ch1 && <-ch2).
 
   ------------------------------------------
   select {                   y   y+ (every caseStmt and default)
@@ -75,7 +66,25 @@ Statement/expression:        Does it need markup/rewrite?
     }
 
   ------------------------------------------
-  cgo call                   y   y
+  for range chExpr { ... }   y   y   y       y
+
+    for range gaptureCtx.OnChan(gapture.CHAN_RANGE, chExpr) {
+      gaptureCtx.OnDone(gapture.CHAN_RANGE_WAIT, -1)
+      ...
+         // ISSUE: any continue's in here would skip the gapture.OnChan!!!
+      ...
+      gaptureCtx.OnChan(gapture.CHAN_RANGE_WAIT, nil)
+    }
+    gaptureCtx.OnDone(gapture.CHAN_RANGE, 0)
 
   ------------------------------------------
-  panic(...)                 n   n
+  cgo call
+    TODO.
+
+  ------------------------------------------
+  panic(...)
+    NOT CONVERTED.
+
+  ------------------------------------------
+  go funcExpr(...)
+    NOT CONVERTED.

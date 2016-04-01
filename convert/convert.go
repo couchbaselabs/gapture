@@ -267,7 +267,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 						},
 					},
 				}
-				vChild.InsertStmtsAfter([]ast.Stmt{
+				vChild.InsertStmtsRelative(1, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
 							Fun: &ast.Ident{
@@ -297,7 +297,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 					Name: vChild.info.TypeOf(x.Chan).String(),
 				},
 			}
-			vChild.InsertStmtsAfter([]ast.Stmt{
+			vChild.InsertStmtsRelative(1, []ast.Stmt{
 				&ast.ExprStmt{
 					X: &ast.CallExpr{
 						Fun: &ast.Ident{
@@ -327,7 +327,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 						Name: vChild.info.TypeOf(x.X).String(),
 					},
 				}
-				vChild.InsertStmtsAfter([]ast.Stmt{
+				vChild.InsertStmtsRelative(1, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
 							Fun: &ast.Ident{
@@ -378,9 +378,10 @@ func (v *Converter) HasParentNode(node ast.Node) bool {
 	return false
 }
 
-// InsertStmtsAfter inserts the given stmt's after the stmt
-// represented by the given converter node instance.
-func (v *Converter) InsertStmtsAfter(toInsert []ast.Stmt) {
+// InsertStmtsRelative inserts the given stmt's after the stmt
+// represented by the given converter node instance.  Use posDelta of
+// 1 to insert after; and posDelta of 0 to insert before.
+func (v *Converter) InsertStmtsRelative(posDelta int, toInsert []ast.Stmt) {
 	var blockStmt *ast.BlockStmt
 	for vc := v; vc != nil; vc = vc.parent { // Find the enclosing blockStmt.
 		bs, ok := vc.node.(*ast.BlockStmt)
@@ -401,7 +402,7 @@ func (v *Converter) InsertStmtsAfter(toInsert []ast.Stmt) {
 		}
 	}
 
-	blockStmt.List = InsertStmts(blockStmt.List, idx+1, toInsert)
+	blockStmt.List = InsertStmts(blockStmt.List, idx+posDelta, toInsert)
 }
 
 // InsertStmts inserts the given stmt's into a given position in a
