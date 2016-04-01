@@ -456,22 +456,18 @@ func (v *Converter) PartOfSelectCommClause() (*ast.CommClause, int) {
 	for v != nil {
 		commClause, ok := v.node.(*ast.CommClause)
 		if ok {
-			commClausePos := 0
+			blockStmt, ok := v.parent.node.(*ast.BlockStmt)
+			if !ok {
+				panic("PartOfSelectCommClause expected a BlockStmt")
+			}
 
-			if v.parent != nil &&
-				v.parent.node != nil {
-				blockStmt, ok := v.parent.node.(*ast.BlockStmt)
-				if ok {
-					for i, cc := range blockStmt.List {
-						if cc == commClause {
-							commClausePos = i
-							break
-						}
-					}
+			for i, cc := range blockStmt.List {
+				if cc == commClause {
+					return commClause, i
 				}
 			}
 
-			return commClause, commClausePos
+			panic("PartOfSelectCommClause expected CommClause to be found")
 		}
 
 		// If we see a Stmt while walking up our parent/ancestry, and
