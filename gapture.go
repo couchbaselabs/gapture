@@ -19,8 +19,30 @@ import (
 	"strconv"
 )
 
-// A goroutine id.
+// GID is a goroutine id.
 type GID int64
+
+// GCtx is a goroutine context.
+type GCtx struct {
+	GID   GID
+	ChOps [][]ChOp // A stack of ChOps.
+}
+
+type ChOp struct {
+	Ch    interface{} // A channel.
+	Op    int
+	Stack string
+}
+
+const (
+    CH_OP_NONE = iota
+    CH_OP_CLOSE
+	CH_OP_SEND
+	CH_OP_RECV
+	CH_OP_SELECT_SEND
+	CH_OP_SELECT_RECV
+	CH_OP_RANGE
+)
 
 var DefaultStackBufSize = 1000
 
