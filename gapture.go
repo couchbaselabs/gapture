@@ -25,7 +25,7 @@ type GID int64
 // GCtx is a goroutine context.
 type GCtx struct {
 	GID    GID
-	OpCtxs [][]OpCtx
+	OpCtxs []OpCtx
 }
 
 // OpCtx associates an operation with context.
@@ -114,98 +114,91 @@ func (gctx *GCtx) EnsureGID() {
 	}
 }
 
-func (gctx *GCtx) PushSimpleOpCtx(op Op, ch interface{}) interface{} {
+func (gctx *GCtx) AddOpCtx(op Op, ch interface{}) interface{} {
 	gctx.EnsureGID()
-	gctx.OpCtxs = append(gctx.OpCtxs, []OpCtx{OpCtx{
+	gctx.OpCtxs = append(gctx.OpCtxs, OpCtx{
 		Op:    op,
 		Stack: CurrentStack(2),
 		Ch:    ch,
-	}})
+	})
 	return ch
 }
 
-func (gctx *GCtx) PopOpCtxs() {
-	top := len(gctx.OpCtxs)-1
-	gctx.OpCtxs[top] = nil
-	gctx.OpCtxs = gctx.OpCtxs[0:top]
+func (gctx *GCtx) ClearOpCtxs() {
+	gctx.OpCtxs = nil
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanClose(ch interface{}) interface{} {
-	return gctx.PushSimpleOpCtx(OP_CH_CLOSE, ch)
+	return gctx.AddOpCtx(OP_CH_CLOSE, ch)
 }
 
 func (gctx *GCtx) OnChanCloseDone() {
-	gctx.PopOpCtxs()
+	gctx.ClearOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanSend(ch interface{}) interface{} {
-	return gctx.PushSimpleOpCtx(OP_CH_SEND, ch)
+	return gctx.AddOpCtx(OP_CH_SEND, ch)
 }
 
 func (gctx *GCtx) OnChanSendDone() {
-	gctx.PopOpCtxs()
+	gctx.ClearOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
-	return gctx.PushSimpleOpCtx(OP_CH_RECV, ch)
+	return gctx.AddOpCtx(OP_CH_RECV, ch)
 }
 
 func (gctx *GCtx) OnChanRecvDone() {
-	gctx.PopOpCtxs()
+	gctx.ClearOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
-func (gctx *GCtx) OnSelectChanSend(caseNum int, ch interface{}) interface{} {
-	gctx.EnsureGID()
-	// TODO.
-	return ch
+func (gctx *GCtx) OnChanSelectSend(caseNum int, ch interface{}) interface{} {
+	return gctx.AddOpCtx(OP_CH_SELECT_SEND, ch)
 }
 
-func (gctx *GCtx) OnSelectChanSendDone(caseNum int) {
-	gctx.PopOpCtxs()
-}
-
-// ---------------------------------------------------------------
-
-func (gctx *GCtx) OnSelectChanRecv(caseNum int, ch interface{}) interface{} {
-	gctx.EnsureGID()
-	// TODO.
-	return ch
-}
-
-func (gctx *GCtx) OnSelectChanRecvDone(caseNum int) {
-	gctx.PopOpCtxs()
+func (gctx *GCtx) OnChanSelectSendDone(caseNum int) {
+	gctx.ClearOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
-func (gctx *GCtx) OnSelectDefault() {
-	gctx.PopOpCtxs()
+func (gctx *GCtx) OnChanSelectRecv(caseNum int, ch interface{}) interface{} {
+	return gctx.AddOpCtx(OP_CH_SELECT_RECV, ch)
+}
+
+func (gctx *GCtx) OnChanSelectRecvDone(caseNum int) {
+	gctx.ClearOpCtxs()
 }
 
 // ---------------------------------------------------------------
 
-func (gctx *GCtx) OnRangeChan(ch interface{}) interface{} {
-	gctx.EnsureGID()
-	// TODO.
-	return ch
+func (gctx *GCtx) OnChanSelectDefault() {
+	gctx.ClearOpCtxs()
 }
 
-func (gctx *GCtx) OnRangeChanBody() {
-	// TODO.
+// ---------------------------------------------------------------
+
+func (gctx *GCtx) OnChanRange(ch interface{}) interface{} {
+	return gctx.AddOpCtx(OP_CH_RANGE, ch)
 }
 
-func (gctx *GCtx) OnRangeChanBodyContinue() {
+func (gctx *GCtx) OnChanRangeBody() {
 	// TODO.
+	gctx.AddOpCtx(OP_CH_RANGE, nil /* TODO */)
 }
 
-func (gctx *GCtx) OnRangeChanDone() {
-	gctx.PopOpCtxs()
+func (gctx *GCtx) OnChanRangeBodyContinue() {
+	gctx.ClearOpCtxs()
+}
+
+func (gctx *GCtx) OnChanRangeDone() {
+	gctx.ClearOpCtxs()
 }

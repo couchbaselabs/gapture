@@ -291,7 +291,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 
 			commClause, commClausePos := v.PartOfSelectCommClause()
 			if commClause != nil {
-				funName = "gaptureGCtx.OnSelectChanSend"
+				funName = "gaptureGCtx.OnChanSelectSend"
 				posName := fmt.Sprintf("%d", commClausePos)
 				argsOp = []ast.Expr{&ast.Ident{Name: posName}}
 
@@ -338,7 +338,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 
 				commClause, commClausePos := v.PartOfSelectCommClause()
 				if commClause != nil {
-					funName = "gaptureGCtx.OnSelectChanRecv"
+					funName = "gaptureGCtx.OnChanSelectRecv"
 					posName := fmt.Sprintf("%d", commClausePos)
 					argsOp = []ast.Expr{&ast.Ident{Name: posName}}
 
@@ -382,12 +382,12 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			//   }
 			// Into:
 			//   select {
-			//   case msg := <-gaptureCtx.OnSelectChanRecv(0, recvCh).(chan foo):
-			//     gaptureCtx.OnSelectChanRecvDone(0)
-			//   case gaptureGCtx.OnSelectChanSend(1, chExpr).(chan foo) <- msgExpr:
-			//     gaptureGCtx.OnSelectChanSendDone(1)
+			//   case msg := <-gaptureCtx.OnChanSelectRecv(0, recvCh).(chan foo):
+			//     gaptureCtx.OnChanSelectRecvDone(0)
+			//   case gaptureGCtx.OnChanSelectSend(1, chExpr).(chan foo) <- msgExpr:
+			//     gaptureGCtx.OnChanSelectSendDone(1)
 			//   default:
-			//     gaptureCtx.OnSelectDefault()
+			//     gaptureCtx.OnChanSelectDefault()
 			//   }
 			//
 			if x.Body != nil {
@@ -399,7 +399,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 								&ast.ExprStmt{
 									X: &ast.CallExpr{
 										Fun: &ast.Ident{
-											Name: "gaptureGCtx.OnSelectDefault",
+											Name: "gaptureGCtx.OnChanSelectDefault",
 										},
 									},
 								},
@@ -413,20 +413,20 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			// Convert:
 			//   for msg := range chExpr { ... }
 			// Info:
-			//   for msg := range gaptureCtx.OnRangeChan(chExpr).(chan foo) {
-			//     gaptureCtx.OnRangeChanBody()
+			//   for msg := range gaptureCtx.OnChanRange(chExpr).(chan foo) {
+			//     gaptureCtx.OnChanRangeBody()
 			//     ...
-			//     ISSUE: any continue's here skip the OnRangeChanBodyLoop!!!
+			//     ISSUE: any continue's here skip the OnChanRangeBodyLoop!!!
 			//     ...
-			//     gaptureCtx.OnRangeChanBodyContinue()
+			//     gaptureCtx.OnChanRangeBodyContinue()
 			//   }
-			//   gaptureCtx.OnRangeChanDone()
+			//   gaptureCtx.OnChanRangeDone()
 			//
 			xTypeString := vChild.info.TypeOf(x.X).String()
 			if strings.HasPrefix(xTypeString, "chan ") {
 				x.X = &ast.TypeAssertExpr{
 					X: &ast.CallExpr{
-						Fun:  &ast.Ident{Name: "gaptureCtx.OnRangeChan"},
+						Fun:  &ast.Ident{Name: "gaptureCtx.OnChanRange"},
 						Args: []ast.Expr{x.X},
 					},
 					Type: &ast.Ident{Name: xTypeString},
@@ -435,7 +435,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				x.Body.List = InsertStmts(x.Body.List, 0, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: "gaptureCtx.OnRangeChanBody"},
+							Fun: &ast.Ident{Name: "gaptureCtx.OnChanRangeBody"},
 						},
 					},
 				})
@@ -443,14 +443,14 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				x.Body.List = append(x.Body.List,
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: "gaptureCtx.OnRangeChanBodyContinue"},
+							Fun: &ast.Ident{Name: "gaptureCtx.OnChanRangeBodyContinue"},
 						},
 					})
 
 				vChild.InsertStmtsRelative(1, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: "gaptureCtx.OnRangeChanDone"},
+							Fun: &ast.Ident{Name: "gaptureCtx.OnChanRangeDone"},
 						},
 					},
 				})
