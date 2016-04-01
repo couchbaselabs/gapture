@@ -48,21 +48,20 @@ Statement/expression conversions:
   NOTE: We don't handle general recv expressions (ex: <-ch1 && <-ch2).
 
   ------------------------------------------
-  select {                   y   y+ (every caseStmt and default)
-    case msg := <-recvCh:
-    case sendCh <- msg:
-    default:
-  }
-
+  Convert:
     select {
-      case msg := <-gaptureCtx.OnChan(gapture.CHAN_SELECT_RECV, recvCh):
-        gaptureCtx.OnDone(gapture.CHAN_SELECT, 0)
-
-      case gaptureCtx.OnChan(gapture.CHAN_SELECT_SEND, sendCh) <- msg:
-        gaptureCtx.OnDone(gapture.CHAN_SELECT, 1)
-
-      default:
-        gaptureCtx.OnDone(gapture.CHAN_SELECT, -1)
+    case msg := <-recvCh:
+    case sendCh <- msgExpr:
+    default:
+    }
+  Into:
+    select {
+    case msg := <-gaptureCtx.OnSelectChanRecv(0, recvCh).(chan foo):
+      gaptureCtx.OnSelectChanRecvDone(0)
+    case gaptureGCtx.OnSelectChanSend(1, chExpr).(chan foo) <- msgExpr:
+      gaptureGCtx.OnSelectChanSendDone(1)
+    default:
+      gaptureCtx.OnSelectDefault()
     }
 
   ------------------------------------------

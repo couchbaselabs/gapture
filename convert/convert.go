@@ -336,6 +336,43 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 						},
 					},
 				})
+				vChild.MarkModified()
+			}
+
+		case *ast.SelectStmt:
+			// Convert:
+			//   select {
+			//   case msg := <-recvCh:
+			//   case sendCh <- msgExpr:
+			//   default:
+			//   }
+			// Into:
+			//   select {
+			//   case msg := <-gaptureCtx.OnSelectChanRecv(0, recvCh).(chan foo):
+			//     gaptureCtx.OnSelectChanRecvDone(0)
+			//   case gaptureGCtx.OnSelectChanSend(1, chExpr).(chan foo) <- msgExpr:
+			//     gaptureGCtx.OnSelectChanSendDone(1)
+			//   default:
+			//     gaptureCtx.OnSelectDefault()
+			//   }
+			//
+			if x.Body != nil {
+				for _, stmt := range x.Body.List {
+					commClause, ok := stmt.(*ast.CommClause)
+					if ok && commClause.Comm == nil { // The 'default:' case.
+						commClause.Body = InsertStmts(commClause.Body, 0,
+							[]ast.Stmt{
+								&ast.ExprStmt{
+									X: &ast.CallExpr{
+										Fun: &ast.Ident{
+											Name: "gaptureGCtx.OnSelectDefault",
+										},
+									},
+								},
+							})
+						vChild.MarkModified()
+					}
+				}
 			}
 
 		case *ast.Ident:

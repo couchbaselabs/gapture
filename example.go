@@ -25,6 +25,15 @@ func ExampleWithChan() {
 		}
 	}()
 
+	func() {
+		select {
+		case msg := <-ch:
+			b = msg
+		case ch <- false:
+		default:
+		}
+	}()
+
 	var z interface{}
 	z = ch
 	ch2 := z.(chan bool)

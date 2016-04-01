@@ -127,3 +127,6 @@ func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
 
 func (gctx *GCtx) OnChanRecvDone() {
 }
+
+func (gctx *GCtx) OnSelectDefault() {
+}
