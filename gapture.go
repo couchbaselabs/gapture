@@ -24,25 +24,38 @@ type GID int64
 
 // GCtx is a goroutine context.
 type GCtx struct {
-	GID   GID
-	ChOps [][]ChOp // A stack of ChOps.
+	GID    GID
+	OpCtxs [][]OpCtx
 }
 
-type ChOp struct {
-	Ch    interface{} // A channel.
-	Op    int
+// OpCtx associates an operation with context.
+type OpCtx struct {
+	Op    Op
 	Stack string
+	Ch    interface{} // A channel.
 }
+
+type Op int
 
 const (
-    CH_OP_NONE = iota
-    CH_OP_CLOSE
-	CH_OP_SEND
-	CH_OP_RECV
-	CH_OP_SELECT_SEND
-	CH_OP_SELECT_RECV
-	CH_OP_RANGE
+    OP_NONE Op = iota
+    OP_CH_CLOSE
+	OP_CH_SEND
+	OP_CH_RECV
+	OP_CH_SELECT_SEND
+	OP_CH_SELECT_RECV
+	OP_CH_RANGE
 )
+
+var OpStrings = map[Op]string{
+	OP_NONE:        "none",
+	OP_CH_CLOSE:       "ch-close",
+	OP_CH_SEND:        "ch-send",
+	OP_CH_RECV:        "ch-recv",
+	OP_CH_SELECT_SEND: "ch-select-send",
+	OP_CH_SELECT_RECV: "ch-select-recv",
+	OP_CH_RANGE:       "ch-range",
+}
 
 var DefaultStackBufSize = 1000
 
