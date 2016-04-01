@@ -33,29 +33,12 @@ var RuntimePackageName = "github.com/couchbaselabs/gapture"
 // vars and in order to capture the runtime GID.
 var RuntimeFuncPrefix []ast.Stmt
 
-// RuntimeStackAssignStmt is an AST snippet that captures the stack.
-var RuntimeStackAssignStmt ast.Stmt
-
 func init() {
-	expr, err :=
-		parser.ParseExpr(`
-func() { gaptureGID := gapture.CurrentGID() }`)
+	expr, err := parser.ParseExpr(`func() { var gaptureGCtx gapture.GCtx }`)
 	if err != nil {
 		panic(err)
 	}
-	stmtGIDAssign := expr.(*ast.FuncLit).Body.List[0].(ast.Stmt)
-
-	expr, err =
-		parser.ParseExpr(`
-func() { var gaptureStack string; gaptureStack = gapture.CurrentStack(0) }`)
-	if err != nil {
-		panic(err)
-	}
-	stmtStackVar := expr.(*ast.FuncLit).Body.List[0].(ast.Stmt)
-
-	RuntimeFuncPrefix = []ast.Stmt{stmtStackVar, stmtGIDAssign}
-
-	RuntimeStackAssignStmt = expr.(*ast.FuncLit).Body.List[1].(ast.Stmt)
+	RuntimeFuncPrefix = expr.(*ast.FuncLit).Body.List
 }
 
 // ------------------------------------------------------
