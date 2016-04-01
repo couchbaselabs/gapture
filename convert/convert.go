@@ -286,12 +286,24 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			//   gaptureGCtx.OnChanSend(chExpr).(chan foo) <- msgExpr
 			//   gaptureGCtx.OnChanSendDone()
 			//
+			funName := "gaptureGCtx.OnChanSend"
+			var argsOp []ast.Expr
+			var argsOpDone []ast.Expr
+
+			pos, ok := v.PartOfSelectCommClause()
+			if ok {
+				funName = "gaptureGCtx.OnSelectChanSend"
+				posName := fmt.Sprintf("%d", pos)
+				argsOp = []ast.Expr{&ast.Ident{Name: posName}}
+				argsOpDone = []ast.Expr{&ast.Ident{Name: posName}}
+			}
+
 			x.Chan = &ast.TypeAssertExpr{
 				X: &ast.CallExpr{
 					Fun: &ast.Ident{
-						Name: "gaptureGCtx.OnChanSend",
+						Name: funName,
 					},
-					Args: []ast.Expr{x.Chan},
+					Args: append(argsOp, x.Chan),
 				},
 				Type: &ast.Ident{
 					Name: vChild.info.TypeOf(x.Chan).String(),
@@ -300,9 +312,8 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			vChild.InsertStmtsRelative(1, []ast.Stmt{
 				&ast.ExprStmt{
 					X: &ast.CallExpr{
-						Fun: &ast.Ident{
-							Name: "gaptureGCtx.OnChanSendDone",
-						},
+						Fun:  &ast.Ident{Name: funName + "Done"},
+						Args: argsOpDone,
 					},
 				},
 			})
@@ -316,12 +327,22 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			//   gaptureCtx.OnChanRecvDone()
 			//
 			if x.Op == token.ARROW {
+				funName := "gaptureGCtx.OnChanRecv"
+				var argsOp []ast.Expr
+				var argsOpDone []ast.Expr
+
+				pos, ok := v.PartOfSelectCommClause()
+				if ok {
+					funName = "gaptureGCtx.OnSelectChanRecv"
+					posName := fmt.Sprintf("%d", pos)
+					argsOp = []ast.Expr{&ast.Ident{Name: posName}}
+					argsOpDone = []ast.Expr{&ast.Ident{Name: posName}}
+				}
+
 				x.X = &ast.TypeAssertExpr{
 					X: &ast.CallExpr{
-						Fun: &ast.Ident{
-							Name: "gaptureGCtx.OnChanRecv",
-						},
-						Args: []ast.Expr{x.X},
+						Fun:  &ast.Ident{Name: funName},
+						Args: append(argsOp, x.X),
 					},
 					Type: &ast.Ident{
 						Name: vChild.info.TypeOf(x.X).String(),
@@ -330,9 +351,8 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				vChild.InsertStmtsRelative(1, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{
-								Name: "gaptureGCtx.OnChanRecvDone",
-							},
+							Fun:  &ast.Ident{Name: funName + "Done"},
+							Args: argsOpDone,
 						},
 					},
 				})
@@ -413,6 +433,33 @@ func (v *Converter) HasParentNode(node ast.Node) bool {
 	}
 
 	return false
+}
+
+// PartOfSelectCommClause returns the 0-based position of the
+// case/default clause if node is part of a select case/default
+// CommClause.
+func (v *Converter) PartOfSelectCommClause() (int, bool) {
+	for v != nil {
+		_, ok := v.node.(*ast.CommClause)
+		if ok {
+			return 0, true
+		}
+
+		// If we see a Stmt while walking up our parent/ancestry, and
+		// it's not an AssignStmt (`x := <-ch`), then we're not in a
+		// select CommClause.
+		_, ok = v.node.(ast.Stmt)
+		if ok {
+			_, ok = v.node.(*ast.AssignStmt)
+			if !ok {
+				return -1, false
+			}
+		}
+
+		v = v.parent
+	}
+
+	return -1, false
 }
 
 // InsertStmtsRelative inserts the given stmt's after the stmt

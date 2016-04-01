@@ -30,6 +30,7 @@ func ExampleWithChan() {
 		case msg := <-ch:
 			b = msg
 		case ch <- false:
+			b = false
 		default:
 		}
 	}()
