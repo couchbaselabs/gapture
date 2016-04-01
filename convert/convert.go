@@ -416,9 +416,9 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			//   for msg := range gaptureCtx.OnRangeChan(chExpr).(chan foo) {
 			//     gaptureCtx.OnRangeChanBody()
 			//     ...
-			//     ISSUE: any continue's in here would skip the gapture.OnChan!!!
+			//     ISSUE: any continue's here skip the OnRangeChanBodyLoop!!!
 			//     ...
-			//     gaptureCtx.OnRangeChanBodyLoop()
+			//     gaptureCtx.OnRangeChanBodyContinue()
 			//   }
 			//   gaptureCtx.OnRangeChanDone()
 			//

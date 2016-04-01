@@ -71,16 +71,17 @@ Statement/expression conversions:
     }
 
   ------------------------------------------
-  for range chExpr { ... }   y   y   y       y
-
-    for range gaptureCtx.OnChan(gapture.CHAN_RANGE, chExpr) {
-      gaptureCtx.OnDone(gapture.CHAN_RANGE_WAIT, -1)
+  Convert:
+    for msg := range chExpr { ... }
+  Info:
+    for msg := range gaptureCtx.OnRangeChan(chExpr).(chan foo) {
+      gaptureCtx.OnRangeChanBody()
       ...
-         // ISSUE: any continue's in here would skip the gapture.OnChan!!!
+      ISSUE: any continue's here skip the OnRangeChanBodyLoop!!!
       ...
-      gaptureCtx.OnChan(gapture.CHAN_RANGE_WAIT, nil)
+      gaptureCtx.OnRangeChanBodyContinue()
     }
-    gaptureCtx.OnDone(gapture.CHAN_RANGE, 0)
+    gaptureCtx.OnRangeChanDone()
 
   ------------------------------------------
   cgo call
