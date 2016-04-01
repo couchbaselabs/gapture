@@ -288,35 +288,41 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			//
 			funName := "gaptureGCtx.OnChanSend"
 			var argsOp []ast.Expr
-			var argsOpDone []ast.Expr
 
-			pos, ok := v.PartOfSelectCommClause()
-			if ok {
+			commClause, commClausePos := v.PartOfSelectCommClause()
+			if commClause != nil {
 				funName = "gaptureGCtx.OnSelectChanSend"
-				posName := fmt.Sprintf("%d", pos)
+				posName := fmt.Sprintf("%d", commClausePos)
 				argsOp = []ast.Expr{&ast.Ident{Name: posName}}
-				argsOpDone = []ast.Expr{&ast.Ident{Name: posName}}
+
+				commClause.Body = InsertStmts(commClause.Body, 0, []ast.Stmt{
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun:  &ast.Ident{Name: funName + "Done"},
+							Args: []ast.Expr{&ast.Ident{Name: posName}},
+						},
+					},
+				})
+			} else {
+				vChild.InsertStmtsRelative(1, []ast.Stmt{
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun: &ast.Ident{Name: funName + "Done"},
+						},
+					},
+				})
 			}
 
 			x.Chan = &ast.TypeAssertExpr{
 				X: &ast.CallExpr{
-					Fun: &ast.Ident{
-						Name: funName,
-					},
+					Fun:  &ast.Ident{Name: funName},
 					Args: append(argsOp, x.Chan),
 				},
 				Type: &ast.Ident{
 					Name: vChild.info.TypeOf(x.Chan).String(),
 				},
 			}
-			vChild.InsertStmtsRelative(1, []ast.Stmt{
-				&ast.ExprStmt{
-					X: &ast.CallExpr{
-						Fun:  &ast.Ident{Name: funName + "Done"},
-						Args: argsOpDone,
-					},
-				},
-			})
+
 			vChild.MarkModified()
 
 		case *ast.UnaryExpr:
@@ -329,14 +335,29 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			if x.Op == token.ARROW {
 				funName := "gaptureGCtx.OnChanRecv"
 				var argsOp []ast.Expr
-				var argsOpDone []ast.Expr
 
-				pos, ok := v.PartOfSelectCommClause()
-				if ok {
+				commClause, commClausePos := v.PartOfSelectCommClause()
+				if commClause != nil {
 					funName = "gaptureGCtx.OnSelectChanRecv"
-					posName := fmt.Sprintf("%d", pos)
+					posName := fmt.Sprintf("%d", commClausePos)
 					argsOp = []ast.Expr{&ast.Ident{Name: posName}}
-					argsOpDone = []ast.Expr{&ast.Ident{Name: posName}}
+
+					commClause.Body = InsertStmts(commClause.Body, 0, []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.CallExpr{
+								Fun:  &ast.Ident{Name: funName + "Done"},
+								Args: []ast.Expr{&ast.Ident{Name: posName}},
+							},
+						},
+					})
+				} else {
+					vChild.InsertStmtsRelative(1, []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.CallExpr{
+								Fun: &ast.Ident{Name: funName + "Done"},
+							},
+						},
+					})
 				}
 
 				x.X = &ast.TypeAssertExpr{
@@ -348,14 +369,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 						Name: vChild.info.TypeOf(x.X).String(),
 					},
 				}
-				vChild.InsertStmtsRelative(1, []ast.Stmt{
-					&ast.ExprStmt{
-						X: &ast.CallExpr{
-							Fun:  &ast.Ident{Name: funName + "Done"},
-							Args: argsOpDone,
-						},
-					},
-				})
+
 				vChild.MarkModified()
 			}
 
@@ -436,13 +450,13 @@ func (v *Converter) HasParentNode(node ast.Node) bool {
 }
 
 // PartOfSelectCommClause returns the 0-based position of the
-// case/default clause if node is part of a select case/default
+// case/default clause if the node is part of a select case/default
 // CommClause.
-func (v *Converter) PartOfSelectCommClause() (int, bool) {
+func (v *Converter) PartOfSelectCommClause() (*ast.CommClause, int) {
 	for v != nil {
-		_, ok := v.node.(*ast.CommClause)
+		commClause, ok := v.node.(*ast.CommClause)
 		if ok {
-			return 0, true
+			return commClause, 0
 		}
 
 		// If we see a Stmt while walking up our parent/ancestry, and
@@ -452,14 +466,14 @@ func (v *Converter) PartOfSelectCommClause() (int, bool) {
 		if ok {
 			_, ok = v.node.(*ast.AssignStmt)
 			if !ok {
-				return -1, false
+				return nil, -1
 			}
 		}
 
 		v = v.parent
 	}
 
-	return -1, false
+	return nil, -1
 }
 
 // InsertStmtsRelative inserts the given stmt's after the stmt
