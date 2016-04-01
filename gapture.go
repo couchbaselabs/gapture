@@ -154,3 +154,18 @@ func (gctx *GCtx) OnSelectChanRecvDone(caseNum int) {
 
 func (gctx *GCtx) OnSelectDefault() {
 }
+
+// ---------------------------------------------------------------
+
+func (gctx *GCtx) OnRangeChan(ch interface{}) interface{} {
+	return ch
+}
+
+func (gctx *GCtx) OnRangeChanBody() {
+}
+
+func (gctx *GCtx) OnRangeChanBodyContinue() {
+}
+
+func (gctx *GCtx) OnRangeChanDone() {
+}
