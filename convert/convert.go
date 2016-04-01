@@ -432,6 +432,21 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 					Type: &ast.Ident{Name: xTypeString},
 				}
 
+				x.Body.List = InsertStmts(x.Body.List, 0, []ast.Stmt{
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun: &ast.Ident{Name: "gaptureCtx.OnRangeChanBody"},
+						},
+					},
+				})
+
+				x.Body.List = append(x.Body.List,
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun: &ast.Ident{Name: "gaptureCtx.OnRangeChanBodyContinue"},
+						},
+					})
+
 				vChild.InsertStmtsRelative(1, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
