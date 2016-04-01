@@ -51,17 +51,23 @@ Statement/expression conversions:
   Convert:
     select {
     case msg := <-recvCh:
+      aaa
     case sendCh <- msgExpr:
+      bbb
     default:
+      ccc
     }
   Into:
     select {
     case msg := <-gaptureCtx.OnSelectChanRecv(0, recvCh).(chan foo):
       gaptureCtx.OnSelectChanRecvDone(0)
+      aaa
     case gaptureGCtx.OnSelectChanSend(1, chExpr).(chan foo) <- msgExpr:
       gaptureGCtx.OnSelectChanSendDone(1)
+      bbb
     default:
       gaptureCtx.OnSelectDefault()
+      ccc
     }
 
   ------------------------------------------
