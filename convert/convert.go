@@ -238,11 +238,13 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
 				vChild.MarkModified()
 			}
+
 		case *ast.FuncLit:
 			if UsesChannels(vChild.info, x) {
 				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
 				vChild.MarkModified()
 			}
+
 		case *ast.CallExpr:
 			ident, ok := x.Fun.(*ast.Ident)
 			if ok && ident.Name == "close" && len(x.Args) == 1 {
@@ -276,6 +278,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				})
 				vChild.MarkModified()
 			}
+
 		case *ast.SendStmt:
 			// Convert:
 			//   chExpr <- msgExpr
@@ -304,6 +307,36 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				},
 			})
 			vChild.MarkModified()
+
+		case *ast.UnaryExpr:
+			// Convert:
+			//   <-chExpr
+			// Into:
+			//   <-gaptureCtx.OnChanRecv(chExpr).(chan foo)
+			//   gaptureCtx.OnChanRecvDone()
+			//
+			if x.Op == token.ARROW {
+				x.X = &ast.TypeAssertExpr{
+					X: &ast.CallExpr{
+						Fun: &ast.Ident{
+							Name: "gaptureGCtx.OnChanRecv",
+						},
+						Args: []ast.Expr{x.X},
+					},
+					Type: &ast.Ident{
+						Name: vChild.info.TypeOf(x.X).String(),
+					},
+				}
+				vChild.InsertStmtsAfter([]ast.Stmt{
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun: &ast.Ident{
+								Name: "gaptureGCtx.OnChanRecvDone",
+							},
+						},
+					},
+				})
+			}
 
 		case *ast.Ident:
 			msg = fmt.Sprintf(" name: %s", x.Name)

@@ -120,3 +120,10 @@ func (gctx *GCtx) OnChanSend(ch interface{}) interface{} {
 
 func (gctx *GCtx) OnChanSendDone() {
 }
+
+func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
+	return ch
+}
+
+func (gctx *GCtx) OnChanRecvDone() {
+}

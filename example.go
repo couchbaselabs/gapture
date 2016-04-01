@@ -16,11 +16,12 @@ func ExampleWithChan() {
 	ch := make(chan bool, 1)
 	ch <- true
 	close(ch)
+	b := <-ch
 
 	func() {
 		rv := false
 		for t := range ch {
-			rv = rv || t
+			rv = rv || t || b
 		}
 	}()
 
