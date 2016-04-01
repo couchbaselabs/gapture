@@ -114,6 +114,8 @@ func (gctx *GCtx) OnChanClose(ch interface{}) interface{} {
 func (gctx *GCtx) OnChanCloseDone() {
 }
 
+// ---------------------------------------------------------------
+
 func (gctx *GCtx) OnChanSend(ch interface{}) interface{} {
 	return ch
 }
@@ -121,12 +123,34 @@ func (gctx *GCtx) OnChanSend(ch interface{}) interface{} {
 func (gctx *GCtx) OnChanSendDone() {
 }
 
+// ---------------------------------------------------------------
+
 func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
 	return ch
 }
 
 func (gctx *GCtx) OnChanRecvDone() {
 }
+
+// ---------------------------------------------------------------
+
+func (gctx *GCtx) OnSelectChanSend(caseNum int, ch interface{}) interface{} {
+	return ch
+}
+
+func (gctx *GCtx) OnSelectChanSendDone(caseNum int) {
+}
+
+// ---------------------------------------------------------------
+
+func (gctx *GCtx) OnSelectChanRecv(caseNum int, ch interface{}) interface{} {
+	return ch
+}
+
+func (gctx *GCtx) OnSelectChanRecvDone(caseNum int) {
+}
+
+// ---------------------------------------------------------------
 
 func (gctx *GCtx) OnSelectDefault() {
 }
