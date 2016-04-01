@@ -38,8 +38,8 @@ type OpCtx struct {
 type Op int
 
 const (
-    OP_NONE Op = iota
-    OP_CH_CLOSE
+	OP_NONE Op = iota
+	OP_CH_CLOSE
 	OP_CH_SEND
 	OP_CH_RECV
 	OP_CH_SELECT_SEND
@@ -48,7 +48,7 @@ const (
 )
 
 var OpStrings = map[Op]string{
-	OP_NONE:        "none",
+	OP_NONE:           "none",
 	OP_CH_CLOSE:       "ch-close",
 	OP_CH_SEND:        "ch-send",
 	OP_CH_RECV:        "ch-recv",
@@ -56,6 +56,8 @@ var OpStrings = map[Op]string{
 	OP_CH_SELECT_RECV: "ch-select-recv",
 	OP_CH_RANGE:       "ch-range",
 }
+
+// ---------------------------------------------------------------
 
 var DefaultStackBufSize = 1000
 
@@ -101,4 +103,20 @@ func CurrentStack(skipFrames int) string {
 		buf = buf[bytes.IndexByte(buf, '\n')+1:]
 	}
 	return string(buf)
+}
+
+// ---------------------------------------------------------------
+
+func (gctx *GCtx) OnChanClose(ch interface{}) interface{} {
+	return ch
+}
+
+func (gctx *GCtx) OnChanCloseDone() {
+}
+
+func (gctx *GCtx) OnChanSend(ch interface{}) interface{} {
+	return ch
+}
+
+func (gctx *GCtx) OnChanSendDone() {
 }

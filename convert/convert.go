@@ -29,8 +29,7 @@ import (
 var RuntimePackageName = "github.com/couchbaselabs/gapture"
 
 // RuntimeFuncPrefix is an AST snippet inserted as initialization
-// stmt's in rewritten func bodies, in order to declare required local
-// vars and in order to capture the runtime GID.
+// stmt's in rewritten func bodies, in order to declare required vars.
 var RuntimeFuncPrefix []ast.Stmt
 
 func init() {
@@ -250,14 +249,14 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				// Convert:
 				//   close(chExpr)
 				// Into:
-				//   close(gaptureCtx.OnChanClose(chExpr).(chan foo))
-				//   gaptureCtx.OnChanCloseDone()
+				//   close(gaptureGCtx.OnChanClose(chExpr).(chan foo))
+				//   gaptureGCtx.OnChanCloseDone()
 				//
 				x.Args = []ast.Expr{
 					&ast.TypeAssertExpr{
 						X: &ast.CallExpr{
 							Fun: &ast.Ident{
-								Name: "gaptureCtx.OnChanClose",
+								Name: "gaptureGCtx.OnChanClose",
 							},
 							Args: x.Args,
 						},
@@ -270,7 +269,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
 							Fun: &ast.Ident{
-								Name: "gaptureCtx.OnChanCloseDone",
+								Name: "gaptureGCtx.OnChanCloseDone",
 							},
 						},
 					},
@@ -281,15 +280,15 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			// Convert:
 			//   chExpr <- msgExpr
 			// Into:
-			//   gaptureCtx.OnChanSend(chExpr).(chan foo) <- msgExpr
-			//   gaptureCtx.OnChanSendDone(0)
+			//   gaptureGCtx.OnChanSend(chExpr).(chan foo) <- msgExpr
+			//   gaptureGCtx.OnChanSendDone()
 			//
 			x.Chan = &ast.TypeAssertExpr{
 				X: &ast.CallExpr{
 					Fun: &ast.Ident{
-						Name: "gaptureCtx.OnChanSend",
+						Name: "gaptureGCtx.OnChanSend",
 					},
-					Args: []ast.Expr{ x.Chan },
+					Args: []ast.Expr{x.Chan},
 				},
 				Type: &ast.Ident{
 					Name: vChild.info.TypeOf(x.Chan).String(),
@@ -299,9 +298,8 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 				&ast.ExprStmt{
 					X: &ast.CallExpr{
 						Fun: &ast.Ident{
-							Name: "gaptureCtx.OnChanSendDone",
+							Name: "gaptureGCtx.OnChanSendDone",
 						},
-						Args: []ast.Expr{ &ast.Ident{ Name: "0" } },
 					},
 				},
 			})
