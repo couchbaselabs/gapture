@@ -22,6 +22,8 @@ import (
 
 	"golang.org/x/tools/go/loader"
 
+	"github.com/kisielk/gotool"
+
 	"github.com/couchbaselabs/gapture/convert"
 )
 
@@ -144,6 +146,16 @@ func CmdBuild(args []string) {
 	config := NewLoaderConfig(strings.Split(flags.Tags, " "))
 	if len(paths) == 1 && !strings.HasSuffix(paths[0], ".go") {
 		config.Import(paths[0])
+	}
+
+	instrument := strings.Trim(flags.Instrument, ", ")
+	if instrument != "" {
+		for _, pkg := range strings.Split(instrument, ",") {
+			// Expands "..." wildcards.
+			for _, path := range gotool.ImportPaths([]string{pkg}) {
+				config.Import(path)
+			}
+		}
 	}
 
 	options := convert.Options{
