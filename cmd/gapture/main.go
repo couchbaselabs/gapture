@@ -25,6 +25,13 @@ import (
 	"github.com/couchbaselabs/gapture/convert"
 )
 
+type Cmd struct {
+	Process func([]string)
+	Descrip string
+}
+
+var Cmds = map[string]Cmd{}
+
 type Flags struct {
 	Instrument string
 	Tags       string
@@ -60,37 +67,56 @@ func init() {
 	i(&flags.Verbose,
 		[]string{"verbose", "v"}, "INT]", 0,
 		"optional, verbose logging level")
+
+	// ------------------------------------------
+
+	Cmds["build"] = Cmd{
+		CmdBuild,
+		"builds the instrumented code",
+	}
+
+	Cmds["help"] = Cmd{
+		CmdHelp,
+		"prints this help message",
+	}
 }
 
-func usage() {
+// ---------------------------------------------
+
+func main() {
+	cmdName := "help"
+	if len(os.Args) >= 1 {
+		cmdName = os.Args[1]
+	}
+
+	cmd, exists := Cmds[cmdName]
+	if !exists {
+		cmd = Cmds["help"]
+	}
+
+	cmd.Process(os.Args[2:])
+}
+
+// ---------------------------------------------
+
+func CmdHelp(args []string) {
 	fmt.Println(
 		`gapture - tool for goroutine runtime behavior capture
 
 Usage: gapture COMMAND [OPTIONS]
 
-Supported COMMAND's:
-- build
-- help`)
+Supported COMMAND's:`)
+
+	for cmdName, cmd := range Cmds {
+		fmt.Printf("- %s - %s\n", cmdName, cmd.Descrip)
+	}
 
 	os.Exit(2)
 }
 
-func main() {
-	if len(os.Args) <= 1 {
-		usage()
-	}
+// ---------------------------------------------
 
-	switch os.Args[1] {
-	case "help":
-		usage()
-	case "build":
-		cmdBuild(os.Args[2:])
-	default:
-		usage()
-	}
-}
-
-func cmdBuild(args []string) {
+func CmdBuild(args []string) {
 	flagSet.Parse(args)
 
 	paths := flagSet.Args()
