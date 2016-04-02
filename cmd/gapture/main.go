@@ -12,14 +12,87 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
+	"os"
+	"strings"
+
+	"go/build"
+
+	"golang.org/x/tools/go/loader"
 
 	"github.com/couchbaselabs/gapture/convert"
 )
 
+type Flags struct {
+	Instrument string
+	Tags       string
+}
+
+var flags Flags
+var flagSet flag.FlagSet
+
+func init() {
+	s := func(v *string, names []string, kind string,
+		defaultVal, usage string) { // String cmd-line param.
+		for _, name := range names {
+			flagSet.StringVar(v, name, defaultVal, usage)
+		}
+	}
+
+	s(&flags.Instrument,
+		[]string{"instrument", "i"}, "PKGS", "",
+		"optional, comma-separated additional packages to instrument")
+
+	s(&flags.Tags,
+		[]string{"tags"}, "TAGS]", "",
+		"optional, space-separated build tags")
+}
+
+func usage() {
+	fmt.Println(
+		`gapture - tool for goroutine runtime behavior capture
+
+Usage: gapture COMMAND [OPTIONS]
+
+Supported COMMAND's:
+- build
+- help`)
+
+	os.Exit(2)
+}
+
 func main() {
+	if len(os.Args) <= 1 {
+		usage()
+	}
+
+	switch os.Args[1] {
+	case "help":
+		usage()
+	case "build":
+		cmdBuild(os.Args[2:])
+	default:
+		usage()
+	}
+}
+
+func cmdBuild(args []string) {
+	flagSet.Parse(args)
+
+	paths := flagSet.Args()
+	if len(paths) <= 0 {
+		paths = []string{"."}
+	}
+
+	config := NewLoaderConfig(strings.Split(flags.Tags, " "))
+	if len(paths) == 1 && !strings.HasSuffix(paths[0], ".go") {
+		config.Import(paths[0])
+	}
+
 	err := convert.ProcessDirs(
-		[]string{"."},
+		paths,
 		convert.Options{
 			OnError: func(err error) { log.Println(err) },
 			Logf:    log.Printf,
@@ -27,4 +100,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func NewLoaderConfig(tags []string) loader.Config {
+	b := build.Default
+	b.BuildTags = append(b.BuildTags, tags...)
+
+	config := loader.Config{}
+	config.Build = &b
+
+	return config
 }
