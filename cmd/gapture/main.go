@@ -28,6 +28,7 @@ import (
 type Flags struct {
 	Instrument string
 	Tags       string
+	Debug      int
 }
 
 var flags Flags
@@ -41,6 +42,13 @@ func init() {
 		}
 	}
 
+	i := func(v *int, names []string, kind string,
+		defaultVal int, usage string) { // Integer cmd-line param.
+		for _, name := range names {
+			flagSet.IntVar(v, name, defaultVal, usage)
+		}
+	}
+
 	s(&flags.Instrument,
 		[]string{"instrument", "i"}, "PKGS", "",
 		"optional, comma-separated additional packages to instrument")
@@ -48,6 +56,10 @@ func init() {
 	s(&flags.Tags,
 		[]string{"tags"}, "TAGS]", "",
 		"optional, space-separated build tags")
+
+	i(&flags.Debug,
+		[]string{"debug", "d"}, "INT]", 0,
+		"optional, debug level")
 }
 
 func usage() {
@@ -91,12 +103,15 @@ func cmdBuild(args []string) {
 		config.Import(paths[0])
 	}
 
-	err := convert.ProcessDirs(
-		paths,
-		convert.Options{
-			OnError: func(err error) { log.Println(err) },
-			Logf:    log.Printf,
-		})
+	options := convert.Options{
+		OnError: func(err error) { log.Println(err) },
+	}
+
+	if flags.Debug > 0 {
+		options.Logf = log.Printf
+	}
+
+	err := convert.ProcessDirs(paths, options)
 	if err != nil {
 		log.Fatal(err)
 	}
