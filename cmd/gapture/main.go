@@ -33,6 +33,7 @@ type Cmd struct {
 var Cmds = map[string]Cmd{}
 
 type Flags struct {
+	Help       bool
 	Instrument string
 	Tags       string
 	Verbose    int
@@ -56,6 +57,17 @@ func init() {
 		}
 	}
 
+	b := func(v *bool, names []string, kind string,
+		defaultVal bool, usage string) { // Bool cmd-line param.
+		for _, name := range names {
+			flagSet.BoolVar(v, name, defaultVal, usage)
+		}
+	}
+
+	b(&flags.Help,
+		[]string{"help", "h", "?"}, "", false,
+		"print this help message and exit")
+
 	s(&flags.Instrument,
 		[]string{"instrument", "i"}, "PKGS", "",
 		"optional, comma-separated additional packages to instrument")
@@ -72,12 +84,12 @@ func init() {
 
 	Cmds["build"] = Cmd{
 		CmdBuild,
-		"builds the instrumented code",
+		"build the instrumented code",
 	}
 
 	Cmds["help"] = Cmd{
 		CmdHelp,
-		"prints this help message",
+		"print this help message and exit",
 	}
 }
 
@@ -103,12 +115,12 @@ func CmdHelp(args []string) {
 	fmt.Println(
 		`gapture - tool for goroutine runtime behavior capture
 
-Usage: gapture COMMAND [OPTIONS]
+Usage: gapture CMD [OPTIONS]
 
-Supported COMMAND's:`)
+Supported CMD's:`)
 
 	for cmdName, cmd := range Cmds {
-		fmt.Printf("- %s - %s\n", cmdName, cmd.Descrip)
+		fmt.Printf("  %s - %s\n", cmdName, cmd.Descrip)
 	}
 
 	os.Exit(2)
@@ -118,6 +130,11 @@ Supported COMMAND's:`)
 
 func CmdBuild(args []string) {
 	flagSet.Parse(args)
+
+	if flags.Help {
+		CmdHelp(args)
+		return
+	}
 
 	paths := flagSet.Args()
 	if len(paths) <= 0 {
