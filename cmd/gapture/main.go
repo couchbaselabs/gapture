@@ -28,7 +28,7 @@ import (
 type Flags struct {
 	Instrument string
 	Tags       string
-	Debug      int
+	Verbose    int
 }
 
 var flags Flags
@@ -57,9 +57,9 @@ func init() {
 		[]string{"tags"}, "TAGS]", "",
 		"optional, space-separated build tags")
 
-	i(&flags.Debug,
-		[]string{"debug", "d"}, "INT]", 0,
-		"optional, debug level")
+	i(&flags.Verbose,
+		[]string{"verbose", "v"}, "INT]", 0,
+		"optional, verbose logging level")
 }
 
 func usage() {
@@ -105,10 +105,7 @@ func cmdBuild(args []string) {
 
 	options := convert.Options{
 		OnError: func(err error) { log.Println(err) },
-	}
-
-	if flags.Debug > 0 {
-		options.Logf = log.Printf
+		Logf:    MakeLogf(flags.Verbose),
 	}
 
 	err := convert.ProcessDirs(paths, options)
@@ -125,4 +122,20 @@ func NewLoaderConfig(tags []string) loader.Config {
 	config.Build = &b
 
 	return config
+}
+
+func MakeLogf(level int) func(fmt string, v ...interface{}) {
+	return func(fmt string, v ...interface{}) {
+		spaces := 0
+		for {
+			if fmt[spaces] != ' ' {
+				break
+			}
+			spaces++
+		}
+
+		if level > spaces {
+			log.Printf(fmt, v...)
+		}
+	}
 }
