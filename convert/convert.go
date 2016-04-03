@@ -285,10 +285,19 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 
 		case *ast.UnaryExpr:
 			// Convert:
+			//   x, ok := <-chExpr
+			// Into:
+			//   x, ok := <-gaptureCtx.OnChanRecv(chExpr).(chan foo))
+			//   gaptureCtx.OnChanRecvDone(nil)
+			//
+			// NOTE: TODO: We cannot handle general channel receive
+			// expressions yet, like "<-chExpr0 + <-chExpr1", or
+			// argments as func calls, like "foo(<-chExpr0)".
+			//
+			// Convert:
 			//   <-chExpr
 			// Into:
-			//   <-gaptureCtx.OnChanRecv(chExpr).(chan foo)
-			//   gaptureCtx.OnChanRecvDone()
+			//   gaptureCtx.OnChanRecvDone(<-gaptureCtx.OnChanRecv(chExpr).(chan foo))).(foo)
 			//
 			if x.Op == token.ARROW {
 				funName := "gaptureGCtx.OnChanRecv"
@@ -304,7 +313,9 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 						&ast.ExprStmt{
 							X: &ast.CallExpr{
 								Fun:  &ast.Ident{Name: funName + "Done"},
-								Args: []ast.Expr{&ast.Ident{Name: posName}},
+								Args: []ast.Expr{
+									&ast.Ident{Name: posName},
+								},
 							},
 						},
 					})
@@ -313,6 +324,9 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 						&ast.ExprStmt{
 							X: &ast.CallExpr{
 								Fun: &ast.Ident{Name: funName + "Done"},
+								Args: []ast.Expr{
+									&ast.Ident{Name: "nil"},
+								},
 							},
 						},
 					})

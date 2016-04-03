@@ -154,8 +154,9 @@ func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
 	return gctx.AddOpCtx(OP_CH_RECV, ch)
 }
 
-func (gctx *GCtx) OnChanRecvDone() {
+func (gctx *GCtx) OnChanRecvDone(v interface{}) interface{} {
 	gctx.ClearOpCtxs()
+	return v
 }
 
 // ---------------------------------------------------------------
