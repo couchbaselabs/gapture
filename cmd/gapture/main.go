@@ -28,16 +28,17 @@ import (
 )
 
 type Cmd struct {
-	Process func([]string)
+	Handler func([]string)
 	Descrip string
 }
 
 var Cmds = map[string]Cmd{}
 
 type Flags struct {
+	BuildTags  string
 	Help       bool
 	Instrument string
-	Tags       string
+	Test       bool
 	Verbose    int
 }
 
@@ -66,6 +67,10 @@ func init() {
 		}
 	}
 
+	s(&flags.BuildTags,
+		[]string{"buildTags"}, "BUILD_TAGS]", "",
+		"optional, space-separated build tags")
+
 	b(&flags.Help,
 		[]string{"help", "h", "?"}, "", false,
 		"print this help message and exit")
@@ -74,9 +79,9 @@ func init() {
 		[]string{"instrument", "i"}, "PKGS", "",
 		"optional, comma-separated additional packages to instrument")
 
-	s(&flags.Tags,
-		[]string{"tags"}, "TAGS]", "",
-		"optional, space-separated build tags")
+	b(&flags.Test,
+		[]string{"test"}, "", false,
+		"include the package's tests in the instrumentation")
 
 	i(&flags.Verbose,
 		[]string{"verbose", "v"}, "INT]", 0,
@@ -108,7 +113,7 @@ func main() {
 		cmd = Cmds["help"]
 	}
 
-	cmd.Process(os.Args[2:])
+	cmd.Handler(os.Args[2:])
 }
 
 // ---------------------------------------------
@@ -138,14 +143,18 @@ func CmdBuild(args []string) {
 		return
 	}
 
-	paths := flagSet.Args()
-	if len(paths) <= 0 {
-		paths = []string{"."}
+	config := loader.Config{}
+
+	if flags.BuildTags != "" {
+		config.Build = &build.Default
+		config.Build.BuildTags = append(config.Build.BuildTags,
+			strings.Split(flags.BuildTags, " ")...)
 	}
 
-	config := NewLoaderConfig(strings.Split(flags.Tags, " "))
-	if len(paths) == 1 && !strings.HasSuffix(paths[0], ".go") {
-		config.Import(paths[0])
+	argsRest, err := config.FromArgs(flagSet.Args(), flags.Test)
+	if err != nil {
+		log.Fatal(err)
+		return
 	}
 
 	instrument := strings.Trim(flags.Instrument, ", ")
@@ -158,25 +167,23 @@ func CmdBuild(args []string) {
 		}
 	}
 
+	prog, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
 	options := convert.Options{
 		OnError: func(err error) { log.Println(err) },
 		Logf:    MakeLogf(flags.Verbose),
 	}
 
-	err := convert.ProcessDirs(paths, options)
+	_ = argsRest // TODO.
+
+	err = convert.ProcessProgram(prog, options)
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func NewLoaderConfig(tags []string) loader.Config {
-	b := build.Default
-	b.BuildTags = append(b.BuildTags, tags...)
-
-	config := loader.Config{}
-	config.Build = &b
-
-	return config
 }
 
 func MakeLogf(level int) func(fmt string, v ...interface{}) {

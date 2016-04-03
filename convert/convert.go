@@ -17,13 +17,14 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/importer"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"os"
 	"reflect"
 	"strings"
+
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/types"
 )
 
 var RuntimePackageName = "github.com/couchbaselabs/gapture"
@@ -45,10 +46,6 @@ func init() {
 // Options allows users to override the default behavior of the
 // instrumentation processing.
 type Options struct {
-	TokenFileSet *token.FileSet
-	TypesInfo    *types.Info
-	TypesConfig  *types.Config
-
 	OnError func(error)
 	Logf    func(fmt string, v ...interface{})
 }
@@ -56,87 +53,47 @@ type Options struct {
 // ------------------------------------------------------
 
 // ProcessDirs instruments the code in the given directory paths.
-func ProcessDirs(paths []string, options Options) error {
+func ProcessProgram(prog *loader.Program, options Options) error {
 	logf := options.Logf
 	if logf == nil {
 		logf = func(fmt string, v ...interface{}) { /* noop */ }
 	}
 
-	fileSet := options.TokenFileSet
-	if fileSet == nil {
-		fileSet = token.NewFileSet()
-	}
+	for pkg, pkgInfo := range prog.AllPackages {
+		logf("pkg: %v => pkgInfo: %v", pkg, pkgInfo)
 
-	info := options.TypesInfo
-	if info == nil {
-		info = &types.Info{
-			Types: map[ast.Expr]types.TypeAndValue{},
-			Defs:  map[*ast.Ident]types.Object{},
-			Uses:  map[*ast.Ident]types.Object{},
-		}
-	}
-
-	config := options.TypesConfig
-	if config == nil {
-		config = &types.Config{
-			Error:    options.OnError,
-			Importer: importer.Default(),
-		}
-	}
-
-	for _, path := range paths {
-		pkgs, err := parser.ParseDir(fileSet, path, nil, parser.ParseComments)
-		if err != nil {
-			return err
-		}
-
-		for _, pkg := range pkgs {
-			files := []*ast.File{}
-			for _, file := range pkg.Files {
-				files = append(files, file)
+		for _, file := range pkgInfo.Files {
+			converter := &Converter{
+				info:     &pkgInfo.Info,
+				file:     file,
+				logf:     logf,
+				node:     file,
 			}
 
-			pkgChecked, err := config.Check(pkg.Name, fileSet, files, info)
-			if err != nil {
-				return err
-			}
+			ast.Walk(converter, file)
 
-			logf("types.config.Check(): %s => %v\n", pkg.Name, pkgChecked)
-
-			for fileName, file := range pkg.Files {
-				converter := &Converter{
-					info:     info,
-					fileName: fileName,
-					file:     file,
-					logf:     logf,
-					node:     file,
-				}
-
-				ast.Walk(converter, file)
-
-				// If the file had modifications, then add import of the
-				// runtime package, if not already.
-				if converter.modifications > 0 &&
-					!FileImportsPackage(file, RuntimePackageName) {
-					file.Decls = append([]ast.Decl{
-						&ast.GenDecl{
-							Tok: token.IMPORT,
-							Specs: []ast.Spec{
-								&ast.ImportSpec{
-									Path: &ast.BasicLit{
-										Kind:  token.STRING,
-										Value: `"` + RuntimePackageName + `"`,
-									},
+			// If the file had modifications, then add import of the
+			// runtime package, if not already.
+			if converter.modifications > 0 &&
+				!FileImportsPackage(file, RuntimePackageName) {
+				file.Decls = append([]ast.Decl{
+					&ast.GenDecl{
+						Tok: token.IMPORT,
+						Specs: []ast.Spec{
+							&ast.ImportSpec{
+								Path: &ast.BasicLit{
+									Kind:  token.STRING,
+									Value: `"` + RuntimePackageName + `"`,
 								},
 							},
 						},
-					}, file.Decls...)
-				}
+					},
+				}, file.Decls...)
+			}
 
-				err = format.Node(os.Stdout, fileSet, file)
-				if err != nil {
-					fmt.Println(err)
-				}
+			err := format.Node(os.Stdout, prog.Fset, file)
+			if err != nil {
+				fmt.Println(err)
 			}
 		}
 	}
@@ -203,7 +160,6 @@ func UsesChannels(info *types.Info, topNode ast.Node) bool {
 type Converter struct {
 	parent   *Converter
 	info     *types.Info
-	fileName string
 	file     *ast.File
 	logf     func(fmt string, v ...interface{})
 	node     ast.Node
@@ -217,7 +173,6 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 	vChild := &Converter{
 		parent:   v,
 		info:     v.info,
-		fileName: v.fileName,
 		file:     v.file,
 		logf:     v.logf,
 		node:     node,
@@ -469,8 +424,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 
-		v.logf("%s %s%s%s", v.fileName, indent[0:depth],
-			reflect.TypeOf(node).String(), msg)
+		v.logf("%s%s%s", indent[0:depth], reflect.TypeOf(node).String(), msg)
 	}
 
 	return vChild
