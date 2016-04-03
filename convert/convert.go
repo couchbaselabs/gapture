@@ -64,10 +64,11 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 
 		for _, file := range pkgInfo.Files {
 			converter := &Converter{
-				info:     &pkgInfo.Info,
-				file:     file,
-				logf:     logf,
-				node:     file,
+				info: &pkgInfo.Info,
+				pkg:  pkg,
+				file: file,
+				logf: logf,
+				node: file,
 			}
 
 			ast.Walk(converter, file)
@@ -158,11 +159,12 @@ func UsesChannels(info *types.Info, topNode ast.Node) bool {
 // A Converter implements the ast.Visitor interface to instrument code
 // with runtime API invocations to capture goroutine/stack info.
 type Converter struct {
-	parent   *Converter
-	info     *types.Info
-	file     *ast.File
-	logf     func(fmt string, v ...interface{})
-	node     ast.Node
+	parent *Converter
+	info   *types.Info
+	pkg    *types.Package
+	file   *ast.File
+	logf   func(fmt string, v ...interface{})
+	node   ast.Node
 
 	modifications int // Count of modifications made to this subtree.
 }
@@ -171,11 +173,12 @@ var indent = "......................................................"
 
 func (v *Converter) Visit(node ast.Node) ast.Visitor {
 	vChild := &Converter{
-		parent:   v,
-		info:     v.info,
-		file:     v.file,
-		logf:     v.logf,
-		node:     node,
+		parent: v,
+		info:   v.info,
+		pkg:    v.pkg,
+		file:   v.file,
+		logf:   v.logf,
+		node:   node,
 	}
 
 	if node != nil {
@@ -218,7 +221,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 							Args: x.Args,
 						},
 						Type: &ast.Ident{
-							Name: vChild.info.TypeOf(x.Args[0]).String(),
+							Name: types.TypeString(v.pkg, vChild.info.TypeOf(x.Args[0])),
 						},
 					},
 				}
@@ -274,7 +277,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 					Args: append(argsOp, x.Chan),
 				},
 				Type: &ast.Ident{
-					Name: vChild.info.TypeOf(x.Chan).String(),
+					Name: types.TypeString(v.pkg, vChild.info.TypeOf(x.Chan)),
 				},
 			}
 
@@ -321,7 +324,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 						Args: append(argsOp, x.X),
 					},
 					Type: &ast.Ident{
-						Name: vChild.info.TypeOf(x.X).String(),
+						Name: types.TypeString(v.pkg, vChild.info.TypeOf(x.X)),
 					},
 				}
 
@@ -377,7 +380,8 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 			//   }
 			//   gaptureCtx.OnChanRangeDone()
 			//
-			xTypeString := vChild.info.TypeOf(x.X).String()
+			xType := vChild.info.TypeOf(x.X)
+			xTypeString := types.TypeString(v.pkg, xType)
 			if strings.HasPrefix(xTypeString, "chan ") {
 				x.X = &ast.TypeAssertExpr{
 					X: &ast.CallExpr{
@@ -420,7 +424,7 @@ func (v *Converter) Visit(node ast.Node) ast.Visitor {
 		case ast.Expr:
 			t := vChild.info.TypeOf(x)
 			if t != nil {
-				msg = fmt.Sprintf(" type: %s", t.String())
+				msg = fmt.Sprintf(" type: %s", types.TypeString(v.pkg, t))
 			}
 		}
 

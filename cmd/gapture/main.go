@@ -33,10 +33,10 @@ type Cmd struct {
 var Cmds = map[string]Cmd{}
 
 type Flags struct {
-	BuildTags  string
-	Help       bool
-	Test       bool
-	Verbose    int
+	BuildTags string
+	Help      bool
+	Test      bool
+	Verbose   int
 }
 
 var flags Flags

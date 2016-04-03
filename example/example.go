@@ -1,47 +1,41 @@
-package gapture
+package example
 
 import (
 	"fmt"
 )
 
-func Example() {
-	fmt.Printf("an example function, useful to test convert processing")
-
-	f := func(x int) int { return x + 1 }
-
-	f(1)
+type Msg struct {
+	From    string
+	Body    map[string]string
+	ReplyCh chan Msg
 }
 
-func ExampleWithChan() {
-	ch := make(chan bool, 1)
-	ch <- true
-	close(ch)
-	b := <-ch
-
-	func() {
-		rv := false
-		for t := range ch {
-			rv = rv || t || b
+func Pinger(name string, ch chan Msg, n int, sync bool) {
+	for i := 0; i < n; i++ {
+		m := Msg{From: name, Body: map[string]string{
+			"i": fmt.Sprintf("%d", i),
+			"n": fmt.Sprintf("%d", n),
+		}}
+		if sync {
+			m.ReplyCh = make(chan Msg)
 		}
-
-		select {
-		case msg := <-ch:
-			b = msg
-		case ch <- false:
-			b = false
-		default:
-			b = true
+		ch <- m
+		if m.ReplyCh != nil {
+			<-m.ReplyCh
 		}
+	}
+}
 
-		for msg := range ch {
-			b = msg
+func Ponger(name string, ch chan Msg) {
+	i := 0
+	for {
+		msg, ok := <-ch
+		if !ok {
+			return
 		}
-	}()
-
-	var z interface{}
-	z = ch
-	ch2 := z.(chan bool)
-	if ch2 == ch {
-		fmt.Printf("yay")
+		if msg.ReplyCh != nil {
+			close(msg.ReplyCh)
+		}
+		i++
 	}
 }
