@@ -22,8 +22,6 @@ import (
 
 	"golang.org/x/tools/go/loader"
 
-	"github.com/kisielk/gotool"
-
 	"github.com/couchbaselabs/gapture/convert"
 )
 
@@ -37,7 +35,6 @@ var Cmds = map[string]Cmd{}
 type Flags struct {
 	BuildTags  string
 	Help       bool
-	Instrument string
 	Test       bool
 	Verbose    int
 }
@@ -74,10 +71,6 @@ func init() {
 	b(&flags.Help,
 		[]string{"help", "h", "?"}, "", false,
 		"print this help message and exit")
-
-	s(&flags.Instrument,
-		[]string{"instrument", "i"}, "PKGS", "",
-		"optional, comma-separated additional packages to instrument")
 
 	b(&flags.Test,
 		[]string{"test"}, "", false,
@@ -157,16 +150,6 @@ func CmdBuild(args []string) {
 		return
 	}
 
-	instrument := strings.Trim(flags.Instrument, ", ")
-	if instrument != "" {
-		for _, pkg := range strings.Split(instrument, ",") {
-			// Expands "..." wildcards.
-			for _, path := range gotool.ImportPaths([]string{pkg}) {
-				config.Import(path)
-			}
-		}
-	}
-
 	prog, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
@@ -178,12 +161,12 @@ func CmdBuild(args []string) {
 		Logf:    MakeLogf(flags.Verbose),
 	}
 
-	_ = argsRest // TODO.
-
 	err = convert.ProcessProgram(prog, options)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	_ = argsRest // TODO.
 }
 
 func MakeLogf(level int) func(fmt string, v ...interface{}) {
