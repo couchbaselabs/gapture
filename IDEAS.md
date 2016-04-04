@@ -40,12 +40,16 @@ Statement/expression conversions:
 
   ------------------------------------------
   Convert:
+    x, ok := <-chExpr
+  Into:
+    x, ok := <-gaptureGCtx.OnChanRecv(chExpr).(chan foo))
+    gaptureGCtx.OnChanRecvDone(nil)
+
+  Convert:
     <-chExpr
   Into:
-    <-gaptureCtx.OnChanRecv(chExpr).(chan foo)
-    gaptureCtx.OnChanRecvDone()
-
-  NOTE: We don't handle general recv expressions (ex: <-ch1 && <-ch2).
+    gaptureGCtx.OnChanRecvDone(
+      <-gaptureGCtx.OnChanRecv(chExpr).(chan foo))).(foo)
 
   ------------------------------------------
   Convert:
@@ -59,14 +63,14 @@ Statement/expression conversions:
     }
   Into:
     select {
-    case msg := <-gaptureCtx.OnSelectChanRecv(0, recvCh).(chan foo):
-      gaptureCtx.OnSelectChanRecvDone(0)
+    case msg := <-gaptureGCtx.OnSelectChanRecv(0, recvCh).(chan foo):
+      gaptureGCtx.OnSelectChanRecvDone(0)
       aaa
     case gaptureGCtx.OnSelectChanSend(1, chExpr).(chan foo) <- msgExpr:
       gaptureGCtx.OnSelectChanSendDone(1)
       bbb
     default:
-      gaptureCtx.OnSelectDefault()
+      gaptureGCtx.OnSelectDefault()
       ccc
     }
 
@@ -74,18 +78,18 @@ Statement/expression conversions:
   Convert:
     for msg := range chExpr { ... }
   Info:
-    for msg := range gaptureCtx.OnRangeChan(chExpr).(chan foo) {
-      gaptureCtx.OnRangeChanBody()
+    for msg := range gaptureGCtx.OnRangeChan(chExpr).(chan foo) {
+      gaptureGCtx.OnRangeChanBody()
       ...
       ISSUE: any continue's here skip the OnRangeChanBodyLoop!!!
       ...
-      gaptureCtx.OnRangeChanBodyContinue()
+      gaptureGCtx.OnRangeChanBodyContinue()
     }
-    gaptureCtx.OnRangeChanDone()
+    gaptureGCtx.OnRangeChanDone()
 
   ------------------------------------------
   cgo call
-    TODO.
+    TODO: cgo handling.
 
   ------------------------------------------
   panic(...)

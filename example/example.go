@@ -50,3 +50,41 @@ func ExprRecv() int {
 	fmt.Printf("%d", <-ch+100)
 	return <-ch * <-ch
 }
+
+func SelectExample() int {
+	ch := make(chan int, 10)
+	x := 1
+
+	select {
+	case m := <-ch:
+		x = m
+	case m, ok := <-ch:
+		if ok {
+			x = m
+		}
+	case ch <- 2:
+		x = 2
+	default:
+		x = 0
+	}
+
+	return x
+}
+
+func CloseExample() {
+	ch := make(chan int, 10)
+	if true {
+		close(ch)
+	}
+}
+
+func RangeExample(ch chan int) int {
+	x := 1
+	for m := range ch {
+		x = m
+	}
+	for range ch {
+		x++
+	}
+	return x
+}
