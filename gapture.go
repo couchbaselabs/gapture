@@ -164,8 +164,7 @@ func (gctx *GCtx) OnChanRecvDone(v interface{}) interface{} {
 
 func (gctx *GCtx) OnChanSelectSend(caseNum int, ch interface{}) interface{} {
 	if len(gctx.OpCtxs) > caseNum {
-		panic("unexpected gapture.OnChanSelectSend," +
-			" len(gctx.OpCtxs) > caseNum")
+		panic("unexpected gapture.OnChanSelectSend caseNum")
 	}
 	return gctx.AddOpCtx(OP_CH_SELECT_SEND, ch)
 }
@@ -178,8 +177,7 @@ func (gctx *GCtx) OnChanSelectSendDone(caseNum int) {
 
 func (gctx *GCtx) OnChanSelectRecv(caseNum int, ch interface{}) interface{} {
 	if len(gctx.OpCtxs) > caseNum {
-		panic("unexpected gapture.OnChanSelectRecv," +
-			" len(gctx.OpCtxs) > caseNum")
+		panic("unexpected gapture.OnChanSelectRecv caseNum")
 	}
 	return gctx.AddOpCtx(OP_CH_SELECT_RECV, ch)
 }
@@ -200,13 +198,18 @@ func (gctx *GCtx) OnChanRange(ch interface{}) interface{} {
 	return gctx.AddOpCtx(OP_CH_RANGE, ch)
 }
 
-func (gctx *GCtx) OnChanRangeBody() {
-	// TODO, need to remember last range ch when we continue.
-	gctx.AddOpCtx(OP_CH_RANGE, nil /* TODO */)
+func (gctx *GCtx) OnChanRangeBody() interface{} {
+	if len(gtx.OpCtx) != 1 ||
+		gtx.OpCtxs[0].Op != OP_CH_RANGE {
+		panic("unexpected gapture.OnChanRangeBody")
+	}
+	rv := gctx.OpCtxs[0].Target
+	gctx.ClearOpCtxs()
+	return rv
 }
 
-func (gctx *GCtx) OnChanRangeBodyContinue() {
-	gctx.ClearOpCtxs()
+func (gctx *GCtx) OnChanRangeBodyContinue(ch interface{}) {
+	gctx.AddOpCtx(OP_CH_RANGE, ch)
 }
 
 func (gctx *GCtx) OnChanRangeDone() {

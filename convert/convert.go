@@ -69,6 +69,7 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 			converter := &Converter{
 				info: &pkgInfo.Info,
 				pkg:  pkg,
+				fset: prog.Fset,
 				file: file,
 				logf: logf,
 				node: file,
@@ -165,6 +166,7 @@ type Converter struct {
 	parent *Converter
 	info   *types.Info
 	pkg    *types.Package
+	fset   *token.FileSet
 	file   *ast.File
 	logf   func(fmt string, v ...interface{})
 	node   ast.Node
@@ -179,6 +181,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 		parent: v,
 		info:   v.info,
 		pkg:    v.pkg,
+		fset:   v.fset,
 		file:   v.file,
 		logf:   v.logf,
 		node:   childNode,
@@ -356,6 +359,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 					ast.Walk(&Converter{
 						info: vChild.info,
 						pkg:  vChild.pkg,
+						fset: vChild.fset,
 						file: vChild.file,
 						logf: vChild.logf,
 						node: x.X,
@@ -434,11 +438,11 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 			//   for msg := range chExpr { ... }
 			// Info:
 			//   for msg := range gaptureGCtx.OnChanRange(chExpr).(chan foo) {
-			//     gaptureGCtx.OnChanRangeBody()
+			//     gaptureRangeCh1234 := gaptureGCtx.OnChanRangeBody()
 			//     ...
 			//     ISSUE: any continue's here skip the OnChanRangeBodyLoop!!!
 			//     ...
-			//     gaptureGCtx.OnChanRangeBodyContinue()
+			//     gaptureGCtx.OnChanRangeBodyContinue(gaptureRangeCh1234)
 			//   }
 			//   gaptureGCtx.OnChanRangeDone()
 			//
@@ -455,18 +459,26 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 					Type: &ast.Ident{Name: xTypeString},
 				}
 
+				position := v.fset.Position(x.Pos())
+				rangeChVarName := fmt.Sprintf("gaptureRangeCh_%d_%d",
+					position.Line,
+					position.Column)
+
 				x.Body.List = InsertStmts(x.Body.List, 0, []ast.Stmt{
-					&ast.ExprStmt{
-						X: &ast.CallExpr{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{&ast.Ident{Name: rangeChVarName}},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{&ast.CallExpr{
 							Fun: &ast.Ident{Name: funName + "Body"},
-						},
+						}},
 					},
 				})
 
 				x.Body.List = append(x.Body.List,
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: funName + "BodyContinue"},
+							Fun:  &ast.Ident{Name: funName + "BodyContinue"},
+							Args: []ast.Expr{&ast.Ident{Name: rangeChVarName}},
 						},
 					})
 
