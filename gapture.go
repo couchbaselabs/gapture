@@ -192,7 +192,7 @@ func (gctx *GCtx) OnChanRange(ch interface{}) interface{} {
 }
 
 func (gctx *GCtx) OnChanRangeBody() {
-	// TODO.
+	// TODO, need to remember last range ch when we continue.
 	gctx.AddOpCtx(OP_CH_RANGE, nil /* TODO */)
 }
 
