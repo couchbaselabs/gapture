@@ -27,9 +27,11 @@ import (
 	"golang.org/x/tools/go/types"
 )
 
-var RuntimeVarName = "gaptureGCtx"
-var RuntimeVarType = "gapture.GCtx"
-var RuntimePackageName = "github.com/couchbaselabs/gapture"
+var RuntimePackage = "gapture"
+var RuntimePackageFull = "github.com/couchbaselabs/gapture"
+
+var RuntimeVarName = RuntimePackage + "GCtx"
+var RuntimeVarType = RuntimePackage + ".GCtx"
 
 // RuntimeFuncPrefix is an AST snippet inserted as initialization
 // stmt's in rewritten func bodies, in order to declare required vars.
@@ -80,7 +82,7 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 			// If the file had modifications, then add import of the
 			// runtime package, if not already.
 			if converter.modifications > 0 &&
-				!FileImportsPackage(file, RuntimePackageName) {
+				!FileImportsPackage(file, RuntimePackageFull) {
 				file.Decls = append([]ast.Decl{
 					&ast.GenDecl{
 						Tok: token.IMPORT,
@@ -88,7 +90,7 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 							&ast.ImportSpec{
 								Path: &ast.BasicLit{
 									Kind:  token.STRING,
-									Value: `"` + RuntimePackageName + `"`,
+									Value: `"` + RuntimePackageFull + `"`,
 								},
 							},
 						},
@@ -460,7 +462,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 				}
 
 				position := v.fset.Position(x.Pos())
-				rangeChVarName := fmt.Sprintf("gaptureRangeCh_%d_%d",
+				rangeChVarName := fmt.Sprintf(RuntimePackage + "RangeCh_%d_%d",
 					position.Line,
 					position.Column)
 
