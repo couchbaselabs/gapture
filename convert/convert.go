@@ -27,6 +27,7 @@ import (
 	"golang.org/x/tools/go/types"
 )
 
+var RuntimeVarName = "gaptureGCtx"
 var RuntimePackageName = "github.com/couchbaselabs/gapture"
 
 // RuntimeFuncPrefix is an AST snippet inserted as initialization
@@ -34,7 +35,7 @@ var RuntimePackageName = "github.com/couchbaselabs/gapture"
 var RuntimeFuncPrefix []ast.Stmt
 
 func init() {
-	expr, err := parser.ParseExpr(`func() { var gaptureGCtx gapture.GCtx }`)
+	expr, err := parser.ParseExpr("func() { var "+RuntimeVarName+" gapture.GCtx }")
 	if err != nil {
 		panic(err)
 	}
@@ -216,7 +217,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 					&ast.TypeAssertExpr{
 						X: &ast.CallExpr{
 							Fun: &ast.Ident{
-								Name: "gaptureGCtx.OnChanClose",
+								Name: RuntimeVarName + ".OnChanClose",
 							},
 							Args: x.Args,
 						},
@@ -229,7 +230,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
 							Fun: &ast.Ident{
-								Name: "gaptureGCtx.OnChanCloseDone",
+								Name: RuntimeVarName + ".OnChanCloseDone",
 							},
 						},
 					},
@@ -244,12 +245,12 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 			//   gaptureGCtx.OnChanSend(chExpr).(chan foo) <- msgExpr
 			//   gaptureGCtx.OnChanSendDone()
 			//
-			funName := "gaptureGCtx.OnChanSend"
+			funName := RuntimeVarName + ".OnChanSend"
 			var argsOp []ast.Expr
 
 			commClause, commClausePos := v.PartOfSelectCommClause()
 			if commClause != nil {
-				funName = "gaptureGCtx.OnChanSelectSend"
+				funName = RuntimeVarName + ".OnChanSelectSend"
 				posName := fmt.Sprintf("%d", commClausePos)
 				argsOp = []ast.Expr{&ast.Ident{Name: posName}}
 
@@ -287,26 +288,23 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 			// Convert:
 			//   x, ok := <-chExpr
 			// Into:
-			//   x, ok := <-gaptureCtx.OnChanRecv(chExpr).(chan foo))
-			//   gaptureCtx.OnChanRecvDone(nil)
-			//
-			// NOTE: TODO: We cannot handle general channel receive
-			// expressions yet, like "<-chExpr0 + <-chExpr1", or
-			// argments as func calls, like "foo(<-chExpr0)".
+			//   x, ok := <-gaptureGCtx.OnChanRecv(chExpr).(chan foo))
+			//   gaptureGCtx.OnChanRecvDone(nil)
 			//
 			// Convert:
 			//   <-chExpr
 			// Into:
-			//   gaptureCtx.OnChanRecvDone(<-gaptureCtx.OnChanRecv(chExpr).(chan foo))).(foo)
+			//   gaptureGCtx.OnChanRecvDone(
+			//     <-gaptureGCtx.OnChanRecv(chExpr).(chan foo))).(foo)
 			//
 			if x.Op == token.ARROW {
-				funName := "gaptureGCtx.OnChanRecv"
+				funName := RuntimeVarName + ".OnChanRecv"
 				var argsOp []ast.Expr
 
 				if _, ok := v.node.(*ast.AssignStmt); ok {
 					commClause, commClausePos := v.PartOfSelectCommClause()
 					if commClause != nil {
-						funName = "gaptureGCtx.OnChanSelectRecv"
+						funName = RuntimeVarName + ".OnChanSelectRecv"
 						posName := fmt.Sprintf("%d", commClausePos)
 						argsOp = []ast.Expr{&ast.Ident{Name: posName}}
 
@@ -368,7 +366,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 					childNode = v.ReplaceChildExpr(x,
 						&ast.TypeAssertExpr{
 							X: &ast.CallExpr{
-								Fun:  &ast.Ident{Name: "gaptureCtx.OnChanRecvDone"},
+								Fun:  &ast.Ident{Name: RuntimeVarName + ".OnChanRecvDone"},
 								Args: []ast.Expr{x},
 							},
 							Type: &ast.Ident{
@@ -393,12 +391,12 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 			//   }
 			// Into:
 			//   select {
-			//   case msg := <-gaptureCtx.OnChanSelectRecv(0, recvCh).(chan foo):
-			//     gaptureCtx.OnChanSelectRecvDone(0)
+			//   case msg := <-gaptureGCtx.OnChanSelectRecv(0, recvCh).(chan foo):
+			//     gaptureGCtx.OnChanSelectRecvDone(0)
 			//   case gaptureGCtx.OnChanSelectSend(1, chExpr).(chan foo) <- msgExpr:
 			//     gaptureGCtx.OnChanSelectSendDone(1)
 			//   default:
-			//     gaptureCtx.OnChanSelectDefault()
+			//     gaptureGCtx.OnChanSelectDefault()
 			//   }
 			//
 			if x.Body != nil {
@@ -410,7 +408,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 								&ast.ExprStmt{
 									X: &ast.CallExpr{
 										Fun: &ast.Ident{
-											Name: "gaptureGCtx.OnChanSelectDefault",
+											Name: RuntimeVarName + ".OnChanSelectDefault",
 										},
 									},
 								},
@@ -424,21 +422,21 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 			// Convert:
 			//   for msg := range chExpr { ... }
 			// Info:
-			//   for msg := range gaptureCtx.OnChanRange(chExpr).(chan foo) {
-			//     gaptureCtx.OnChanRangeBody()
+			//   for msg := range gaptureGCtx.OnChanRange(chExpr).(chan foo) {
+			//     gaptureGCtx.OnChanRangeBody()
 			//     ...
 			//     ISSUE: any continue's here skip the OnChanRangeBodyLoop!!!
 			//     ...
-			//     gaptureCtx.OnChanRangeBodyContinue()
+			//     gaptureGCtx.OnChanRangeBodyContinue()
 			//   }
-			//   gaptureCtx.OnChanRangeDone()
+			//   gaptureGCtx.OnChanRangeDone()
 			//
 			xType := v.info.TypeOf(x.X)
 			xTypeString := types.TypeString(v.pkg, xType)
 			if strings.HasPrefix(xTypeString, "chan ") {
 				x.X = &ast.TypeAssertExpr{
 					X: &ast.CallExpr{
-						Fun:  &ast.Ident{Name: "gaptureCtx.OnChanRange"},
+						Fun:  &ast.Ident{Name: RuntimeVarName + ".OnChanRange"},
 						Args: []ast.Expr{x.X},
 					},
 					Type: &ast.Ident{Name: xTypeString},
@@ -447,7 +445,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 				x.Body.List = InsertStmts(x.Body.List, 0, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: "gaptureCtx.OnChanRangeBody"},
+							Fun: &ast.Ident{Name: RuntimeVarName + ".OnChanRangeBody"},
 						},
 					},
 				})
@@ -455,14 +453,14 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 				x.Body.List = append(x.Body.List,
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: "gaptureCtx.OnChanRangeBodyContinue"},
+							Fun: &ast.Ident{Name: RuntimeVarName + ".OnChanRangeBodyContinue"},
 						},
 					})
 
 				vChild.InsertStmtsRelative(1, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: "gaptureCtx.OnChanRangeDone"},
+							Fun: &ast.Ident{Name: RuntimeVarName + ".OnChanRangeDone"},
 						},
 					},
 				})
