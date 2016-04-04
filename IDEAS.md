@@ -79,11 +79,11 @@ Statement/expression conversions:
     for msg := range chExpr { ... }
   Info:
     for msg := range gaptureGCtx.OnRangeChan(chExpr).(chan foo) {
-      gaptureGCtx.OnRangeChanBody()
+      gaptureRangeCh1234 := gaptureGCtx.OnRangeChanBody()
       ...
       ISSUE: any continue's here skip the OnRangeChanBodyLoop!!!
       ...
-      gaptureGCtx.OnRangeChanBodyContinue()
+      gaptureGCtx.OnRangeChanBodyContinue(gaptureRangeCh1234)
     }
     gaptureGCtx.OnRangeChanDone()
 
