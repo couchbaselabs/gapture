@@ -28,6 +28,7 @@ import (
 )
 
 var RuntimeVarName = "gaptureGCtx"
+var RuntimeVarType = "gapture.GCtx"
 var RuntimePackageName = "github.com/couchbaselabs/gapture"
 
 // RuntimeFuncPrefix is an AST snippet inserted as initialization
@@ -35,7 +36,8 @@ var RuntimePackageName = "github.com/couchbaselabs/gapture"
 var RuntimeFuncPrefix []ast.Stmt
 
 func init() {
-	expr, err := parser.ParseExpr("func() { var "+RuntimeVarName+" gapture.GCtx }")
+	expr, err := parser.ParseExpr(
+		"func() { var "+RuntimeVarName+" "+RuntimeVarType+" }")
 	if err != nil {
 		panic(err)
 	}
@@ -434,9 +436,11 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 			xType := v.info.TypeOf(x.X)
 			xTypeString := types.TypeString(v.pkg, xType)
 			if strings.HasPrefix(xTypeString, "chan ") {
+				funName := RuntimeVarName + ".OnChanRange"
+
 				x.X = &ast.TypeAssertExpr{
 					X: &ast.CallExpr{
-						Fun:  &ast.Ident{Name: RuntimeVarName + ".OnChanRange"},
+						Fun:  &ast.Ident{Name: funName},
 						Args: []ast.Expr{x.X},
 					},
 					Type: &ast.Ident{Name: xTypeString},
@@ -445,7 +449,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 				x.Body.List = InsertStmts(x.Body.List, 0, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: RuntimeVarName + ".OnChanRangeBody"},
+							Fun: &ast.Ident{Name: funName + "Body"},
 						},
 					},
 				})
@@ -453,14 +457,14 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 				x.Body.List = append(x.Body.List,
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: RuntimeVarName + ".OnChanRangeBodyContinue"},
+							Fun: &ast.Ident{Name: funName + "BodyContinue"},
 						},
 					})
 
 				vChild.InsertStmtsRelative(1, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun: &ast.Ident{Name: RuntimeVarName + ".OnChanRangeDone"},
+							Fun: &ast.Ident{Name: funName + "Done"},
 						},
 					},
 				})
