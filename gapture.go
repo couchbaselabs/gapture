@@ -15,6 +15,7 @@ package gapture
 
 import (
 	"bytes"
+	"fmt"
 	"runtime"
 	"strconv"
 )
@@ -30,9 +31,9 @@ type GCtx struct {
 
 // OpCtx associates an operation with context.
 type OpCtx struct {
-	Op    Op
-	Stack string
-	Ch    interface{} // A channel.
+	Op     Op
+	Stack  string
+	Target interface{} // Depends on the operation; ex: a channel.
 }
 
 type Op int
@@ -114,14 +115,14 @@ func (gctx *GCtx) EnsureGID() {
 	}
 }
 
-func (gctx *GCtx) AddOpCtx(op Op, ch interface{}) interface{} {
+func (gctx *GCtx) AddOpCtx(op Op, target interface{}) interface{} {
 	gctx.EnsureGID()
 	gctx.OpCtxs = append(gctx.OpCtxs, OpCtx{
-		Op:    op,
-		Stack: CurrentStack(2),
-		Ch:    ch,
+		Op:     op,
+		Stack:  CurrentStack(2),
+		Target: target,
 	})
-	return ch
+	return target
 }
 
 func (gctx *GCtx) ClearOpCtxs() {
@@ -151,6 +152,10 @@ func (gctx *GCtx) OnChanSendDone() {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
+	if len(gctx.OpCtxs) > caseNum {
+		panic("unexpected gapture.OnChanSelectSend," +
+			" len(gctx.OpCtxs) > caseNum")
+	}
 	return gctx.AddOpCtx(OP_CH_RECV, ch)
 }
 
@@ -162,6 +167,10 @@ func (gctx *GCtx) OnChanRecvDone(v interface{}) interface{} {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanSelectSend(caseNum int, ch interface{}) interface{} {
+	if len(gctx.OpCtxs) > caseNum {
+		panic("unexpected gapture.OnChanSelectSend," +
+			" len(gctx.OpCtxs) > caseNum")
+	}
 	return gctx.AddOpCtx(OP_CH_SELECT_SEND, ch)
 }
 
