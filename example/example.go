@@ -82,9 +82,9 @@ func RangeExample(ch chan int) int {
 	x := 1
 	for m := range ch {
 		x = m
-	}
-	for range ch {
-		x++
+		for range ch {
+			x++
+		}
 	}
 	return x
 }
