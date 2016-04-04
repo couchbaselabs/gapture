@@ -228,6 +228,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 						},
 					},
 				}
+
 				vChild.InsertStmtsRelative(1, []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
@@ -237,6 +238,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 						},
 					},
 				})
+
 				vChild.MarkModified()
 			}
 
@@ -345,6 +347,8 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 
 					vChild.MarkModified()
 				} else {
+					typeUnderlying := v.info.TypeOf(x.X).Underlying()
+
 					ast.Walk(&Converter{
 						info: vChild.info,
 						pkg:  vChild.pkg,
@@ -352,8 +356,6 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 						logf: vChild.logf,
 						node: x.X,
 					}, x.X)
-
-					typeUnderlying := v.info.TypeOf(x.X).Underlying()
 
 					x.X = &ast.TypeAssertExpr{
 						X: &ast.CallExpr{
@@ -380,6 +382,8 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 
 					vChild.MarkModified()
 
+					// We've explicitly walked x.X already above, so
+					// end the recursive walk.
 					return nil
 				}
 			}
@@ -415,6 +419,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 									},
 								},
 							})
+
 						vChild.MarkModified()
 					}
 				}
