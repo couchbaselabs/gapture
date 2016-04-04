@@ -152,10 +152,6 @@ func (gctx *GCtx) OnChanSendDone() {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanRecv(ch interface{}) interface{} {
-	if len(gctx.OpCtxs) > caseNum {
-		panic("unexpected gapture.OnChanSelectSend," +
-			" len(gctx.OpCtxs) > caseNum")
-	}
 	return gctx.AddOpCtx(OP_CH_RECV, ch)
 }
 
@@ -181,6 +177,10 @@ func (gctx *GCtx) OnChanSelectSendDone(caseNum int) {
 // ---------------------------------------------------------------
 
 func (gctx *GCtx) OnChanSelectRecv(caseNum int, ch interface{}) interface{} {
+	if len(gctx.OpCtxs) > caseNum {
+		panic("unexpected gapture.OnChanSelectRecv," +
+			" len(gctx.OpCtxs) > caseNum")
+	}
 	return gctx.AddOpCtx(OP_CH_SELECT_RECV, ch)
 }
 
