@@ -37,7 +37,7 @@ var RuntimeFuncPrefix []ast.Stmt
 
 func init() {
 	expr, err := parser.ParseExpr(
-		"func() { var "+RuntimeVarName+" "+RuntimeVarType+" }")
+		"func() { var " + RuntimeVarName + " " + RuntimeVarType + " }")
 	if err != nil {
 		panic(err)
 	}
@@ -315,7 +315,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 						commClause.Body = InsertStmts(commClause.Body, 0, []ast.Stmt{
 							&ast.ExprStmt{
 								X: &ast.CallExpr{
-									Fun:  &ast.Ident{Name: funName + "Done"},
+									Fun: &ast.Ident{Name: funName + "Done"},
 									Args: []ast.Expr{
 										&ast.Ident{Name: posName},
 									},
@@ -347,7 +347,11 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 
 					vChild.MarkModified()
 				} else {
-					typeUnderlying := v.info.TypeOf(x.X).Underlying()
+					chanType, ok := v.info.TypeOf(x.X).(*types.Chan)
+					if !ok {
+						panic("expected chan type for recv operator")
+					}
+					chanElemType := chanType.Elem()
 
 					ast.Walk(&Converter{
 						info: vChild.info,
@@ -374,7 +378,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 								Args: []ast.Expr{x},
 							},
 							Type: &ast.Ident{
-								Name: types.TypeString(v.pkg, typeUnderlying),
+								Name: types.TypeString(v.pkg, chanElemType),
 							},
 						})
 

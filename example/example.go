@@ -39,3 +39,14 @@ func Ponger(name string, ch chan Msg) {
 		i++
 	}
 }
+
+func ExprRecv() int {
+	ch := make(chan int, 10)
+	ch <- 1
+	ch <- 2
+	ch <- 3
+	i := <-ch * (<-ch + 2)
+	ch <- i
+	fmt.Printf("%d", <-ch+100)
+	return <-ch * <-ch
+}
