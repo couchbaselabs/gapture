@@ -462,7 +462,7 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 				}
 
 				position := v.fset.Position(x.Pos())
-				rangeChVarName := fmt.Sprintf(RuntimePackage + "RangeCh_%d_%d",
+				rangeChVarName := fmt.Sprintf(RuntimePackage+"RangeCh_%d_%d",
 					position.Line,
 					position.Column)
 
