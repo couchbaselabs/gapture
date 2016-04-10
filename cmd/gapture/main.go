@@ -14,6 +14,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -146,13 +147,13 @@ func CmdBuild(args []string) {
 
 	argsRest, err := config.FromArgs(flagSet.Args(), flags.Test)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error: config.FromArgs, err: %v", err)
 		return
 	}
 
 	prog, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error: config.Log, err: %v", err)
 		return
 	}
 
@@ -163,8 +164,15 @@ func CmdBuild(args []string) {
 
 	err = convert.ProcessProgram(prog, options)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error: convert.ProcessProgram, err: %v", err)
 	}
+
+	tempDir, err := ioutil.TempDir("", convert.RuntimePackage)
+	if err != nil {
+		log.Fatalf("error: could not create tempDir, err: %v", err)
+	}
+
+	defer os.RemoveAll(tempDir)
 
 	_ = argsRest // TODO.
 }
