@@ -98,6 +98,8 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 				}, file.Decls...)
 			}
 
+			logf("file name: %+v", prog.Fset.File(file.Pos()).Name())
+
 			err := format.Node(os.Stdout, prog.Fset, file)
 			if err != nil {
 				fmt.Println(err)
