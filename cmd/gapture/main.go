@@ -177,6 +177,8 @@ func CmdBuild(args []string) {
 	_ = argsRest // TODO.
 }
 
+// MakeLogf returns a logger function that uses message indentation to
+// determine the logging level of the message.
 func MakeLogf(level int) func(fmt string, v ...interface{}) {
 	return func(fmt string, v ...interface{}) {
 		spaces := 0
