@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"go/build"
+	"go/parser"
 	"go/printer"
 
 	"golang.org/x/tools/go/loader"
@@ -138,7 +139,9 @@ func CmdBuild(args []string) {
 		return
 	}
 
-	config := loader.Config{}
+	config := loader.Config{
+		ParserMode: parser.ParseComments,
+	}
 
 	if flags.BuildTags != "" {
 		config.Build = &build.Default
