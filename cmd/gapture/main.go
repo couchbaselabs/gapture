@@ -188,6 +188,7 @@ func CmdBuild(args []string) {
 	for _, pkgInfo := range prog.InitialPackages() {
 		for _, f := range pkgInfo.Files {
 			printerConfig := printer.Config{
+				Mode:     printer.UseSpaces | printer.TabIndent,
 				Tabwidth: 8,
 			}
 
