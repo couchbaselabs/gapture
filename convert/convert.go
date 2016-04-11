@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/parser"
 	"go/token"
 	"os"
 	"reflect"
@@ -30,20 +29,34 @@ import (
 var RuntimePackage = "gapture"
 var RuntimePackageFull = "github.com/couchbaselabs/gapture"
 
-var RuntimeVarName = RuntimePackage + "GCtx"
-var RuntimeVarType = RuntimePackage + ".GCtx"
+var RuntimeVarType = "GCtx"
+var RuntimeVarName = RuntimePackage + RuntimeVarType
 
-// RuntimeFuncPrefix is an AST snippet inserted as initialization
-// stmt's in rewritten func bodies, in order to declare required vars.
-var RuntimeFuncPrefix []ast.Stmt
-
-func init() {
-	expr, err := parser.ParseExpr(
-		"func() { var " + RuntimeVarName + " " + RuntimeVarType + " }")
-	if err != nil {
-		panic(err)
+// RuntimeFuncPrefix returns an AST snippet that can be inserted as
+// initialization stmt's in rewritten func bodies, in order to declare
+// required vars.
+func RuntimeFuncPrefix() []ast.Stmt {
+	// Equivalent to "var $RuntimeVarName = $RuntimePackage.$RuntimeVarType".
+	return []ast.Stmt{
+		&ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok: token.VAR,
+				Specs: []ast.Spec{
+					&ast.ValueSpec{
+						Names: []*ast.Ident{
+							&ast.Ident{Name: RuntimeVarName},
+						},
+						Values: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   &ast.Ident{Name: RuntimePackage},
+								Sel: &ast.Ident{Name: RuntimeVarType},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
-	RuntimeFuncPrefix = expr.(*ast.FuncLit).Body.List
 }
 
 // ------------------------------------------------------
@@ -204,13 +217,13 @@ func (v *Converter) Visit(childNode ast.Node) ast.Visitor {
 		case *ast.FuncDecl:
 			msg = fmt.Sprintf(" name: %v", x.Name)
 			if UsesChannels(v.info, x) {
-				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
+				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix())
 				vChild.MarkModified()
 			}
 
 		case *ast.FuncLit:
 			if UsesChannels(v.info, x) {
-				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix)
+				x.Body.List = InsertStmts(x.Body.List, 0, RuntimeFuncPrefix())
 				vChild.MarkModified()
 			}
 
@@ -550,7 +563,7 @@ func (v *Converter) ReplaceChildExpr(orig, replacement ast.Expr) ast.Node {
 	}
 
 	switch n := v.node.(type) {
-	// Expressions
+	// Expressions...
 	case *ast.BadExpr, *ast.Ident, *ast.BasicLit:
 		// NO-OP.
 
@@ -634,7 +647,7 @@ func (v *Converter) ReplaceChildExpr(orig, replacement ast.Expr) ast.Node {
 			n.Value = replacement
 		}
 
-	// Types
+	// Types...
 	case *ast.ArrayType:
 		// NO-OP.
 
@@ -653,7 +666,7 @@ func (v *Converter) ReplaceChildExpr(orig, replacement ast.Expr) ast.Node {
 	case *ast.ChanType:
 		// NO-OP.
 
-	// Statements
+	// Statements...
 	case *ast.BadStmt:
 		// NO-OP.
 
@@ -741,7 +754,7 @@ func (v *Converter) ReplaceChildExpr(orig, replacement ast.Expr) ast.Node {
 			n.X = replacement
 		}
 
-	// Declarations
+	// Declarations...
 	case *ast.ImportSpec:
 		// NO-OP.
 
@@ -760,7 +773,7 @@ func (v *Converter) ReplaceChildExpr(orig, replacement ast.Expr) ast.Node {
 	case *ast.FuncDecl:
 		// NO-OP.
 
-	// Files and packages
+	// Files and packages...
 	case *ast.File:
 		// NO-OP.
 
