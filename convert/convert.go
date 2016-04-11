@@ -83,6 +83,7 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 			// runtime package, if not already.
 			if converter.modifications > 0 &&
 				!FileImportsPackage(file, RuntimePackageFull) {
+				// TODO: See golang.org/x/tools/go/ast/astutil.AddNamedImport()?
 				file.Decls = append([]ast.Decl{
 					&ast.GenDecl{
 						Tok: token.IMPORT,

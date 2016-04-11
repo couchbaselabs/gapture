@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"go/build"
+	"go/printer"
 
 	"golang.org/x/tools/go/loader"
 
@@ -157,14 +158,21 @@ func CmdBuild(args []string) {
 		return
 	}
 
+	logf := MakeIndentationLogf(flags.Verbose)
+
 	options := convert.Options{
 		OnError: func(err error) { log.Println(err) },
-		Logf:    MakeLogf(flags.Verbose),
+		Logf:    logf,
 	}
 
 	err = convert.ProcessProgram(prog, options)
 	if err != nil {
 		log.Fatalf("error: convert.ProcessProgram, err: %v", err)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("error: os.Getwd, err: %v", err)
 	}
 
 	tempDir, err := ioutil.TempDir("", convert.RuntimePackage)
@@ -174,12 +182,28 @@ func CmdBuild(args []string) {
 
 	defer os.RemoveAll(tempDir)
 
+	for _, pkgInfo := range prog.InitialPackages() {
+		for _, f := range pkgInfo.Files {
+			printerConfig := printer.Config{
+				Tabwidth: 8,
+			}
+
+			filename := prog.Fset.Position(f.Pos()).Filename
+
+			logf("filename: %+v", filename)
+
+			printerConfig.Fprint(os.Stdout, prog.Fset, f)
+		}
+	}
+
+	_ = wd
+	_ = tempDir
 	_ = argsRest // TODO.
 }
 
-// MakeLogf returns a logger function that uses message indentation to
-// determine the logging level of the message.
-func MakeLogf(level int) func(fmt string, v ...interface{}) {
+// MakeIndentationLogf returns a logger function that uses message
+// indentation to determine the logging level of the message.
+func MakeIndentationLogf(level int) func(fmt string, v ...interface{}) {
 	return func(fmt string, v ...interface{}) {
 		spaces := 0
 		for {
