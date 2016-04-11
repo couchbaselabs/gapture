@@ -15,7 +15,6 @@ package gapture
 
 import (
 	"bytes"
-	"fmt"
 	"runtime"
 	"strconv"
 )
@@ -199,8 +198,8 @@ func (gctx *GCtx) OnChanRange(ch interface{}) interface{} {
 }
 
 func (gctx *GCtx) OnChanRangeBody() interface{} {
-	if len(gtx.OpCtx) != 1 ||
-		gtx.OpCtxs[0].Op != OP_CH_RANGE {
+	if len(gctx.OpCtxs) != 1 ||
+		gctx.OpCtxs[0].Op != OP_CH_RANGE {
 		panic("unexpected gapture.OnChanRangeBody")
 	}
 	rv := gctx.OpCtxs[0].Target
