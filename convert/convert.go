@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strings"
 
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 )
@@ -96,20 +97,7 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 			// runtime package, if not already.
 			if converter.modifications > 0 &&
 				!FileImportsPackage(file, RuntimePackageFull) {
-				// TODO: See golang.org/x/tools/go/ast/astutil.AddNamedImport()?
-				file.Decls = append([]ast.Decl{
-					&ast.GenDecl{
-						Tok: token.IMPORT,
-						Specs: []ast.Spec{
-							&ast.ImportSpec{
-								Path: &ast.BasicLit{
-									Kind:  token.STRING,
-									Value: `"` + RuntimePackageFull + `"`,
-								},
-							},
-						},
-					},
-				}, file.Decls...)
+				astutil.AddImport(prog.Fset, file, RuntimePackageFull)
 			}
 
 			logf("file name: %+v", prog.Fset.File(file.Pos()).Name())
