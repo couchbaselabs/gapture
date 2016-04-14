@@ -16,9 +16,7 @@ package convert
 import (
 	"fmt"
 	"go/ast"
-	"go/format"
 	"go/token"
-	"os"
 	"reflect"
 	"strings"
 
@@ -72,11 +70,14 @@ type Options struct {
 // ------------------------------------------------------
 
 // ProcessDirs instruments the code in the given directory paths.
-func ProcessProgram(prog *loader.Program, options Options) error {
+func ProcessProgram(prog *loader.Program, options Options) (
+	map[string]*ast.File, error) {
 	logf := options.Logf
 	if logf == nil {
 		logf = func(fmt string, v ...interface{}) { /* noop */ }
 	}
+
+	convertedFiles := map[string]*ast.File{}
 
 	for pkg, pkgInfo := range prog.AllPackages {
 		logf("pkg: %v => pkgInfo: %v", pkg, pkgInfo)
@@ -91,6 +92,8 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 				node: file,
 			}
 
+			fileName := prog.Fset.Position(file.Pos()).Filename
+
 			ast.Walk(converter, file)
 
 			// If the file had modifications, then add import of the
@@ -98,18 +101,13 @@ func ProcessProgram(prog *loader.Program, options Options) error {
 			if converter.modifications > 0 &&
 				!FileImportsPackage(file, RuntimePackageFull) {
 				astutil.AddImport(prog.Fset, file, RuntimePackageFull)
-			}
 
-			logf("file name: %+v", prog.Fset.File(file.Pos()).Name())
-
-			err := format.Node(os.Stdout, prog.Fset, file)
-			if err != nil {
-				fmt.Println(err)
+				convertedFiles[fileName] = file
 			}
 		}
 	}
 
-	return nil
+	return convertedFiles, nil
 }
 
 // ----------------------------------------------------------------

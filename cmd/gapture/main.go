@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"go/build"
+	"go/format"
 	"go/parser"
-	"go/printer"
 
 	"golang.org/x/tools/go/loader"
 
@@ -139,6 +139,8 @@ func CmdBuild(args []string) {
 		return
 	}
 
+	logf := MakeIndentationLogf(flags.Verbose)
+
 	config := loader.Config{
 		ParserMode: parser.ParseComments,
 	}
@@ -151,52 +153,44 @@ func CmdBuild(args []string) {
 
 	argsRest, err := config.FromArgs(flagSet.Args(), flags.Test)
 	if err != nil {
-		log.Fatalf("error: config.FromArgs, err: %v", err)
+		log.Fatalf("main: CmdBuild, config.FromArgs, err: %v", err)
 		return
 	}
 
 	prog, err := config.Load()
 	if err != nil {
-		log.Fatalf("error: config.Log, err: %v", err)
+		log.Fatalf("main: CmdBuild, config.Log, err: %v", err)
 		return
 	}
-
-	logf := MakeIndentationLogf(flags.Verbose)
 
 	options := convert.Options{
 		OnError: func(err error) { log.Println(err) },
 		Logf:    logf,
 	}
 
-	err = convert.ProcessProgram(prog, options)
+	convertedFiles, err := convert.ProcessProgram(prog, options)
 	if err != nil {
-		log.Fatalf("error: convert.ProcessProgram, err: %v", err)
+		log.Fatalf("main: CmdBuild, convert.ProcessProgram, err: %v", err)
 	}
 
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("error: os.Getwd, err: %v", err)
+		log.Fatalf("main: CmdBuild, os.Getwd, err: %v", err)
 	}
 
 	tempDir, err := ioutil.TempDir("", convert.RuntimePackage)
 	if err != nil {
-		log.Fatalf("error: could not create tempDir, err: %v", err)
+		log.Fatalf("main: CmdBuild, could not create tempDir, err: %v", err)
 	}
 
 	defer os.RemoveAll(tempDir)
 
-	for _, pkgInfo := range prog.InitialPackages() {
-		for _, f := range pkgInfo.Files {
-			printerConfig := printer.Config{
-				Mode:     printer.UseSpaces | printer.TabIndent,
-				Tabwidth: 8,
-			}
+	for fileName, file := range convertedFiles {
+		logf("main: CmdBuild, fileName: %+v", fileName)
 
-			filename := prog.Fset.Position(f.Pos()).Filename
-
-			logf("filename: %+v", filename)
-
-			printerConfig.Fprint(os.Stdout, prog.Fset, f)
+		err := format.Node(os.Stdout, prog.Fset, file)
+		if err != nil {
+			logf("main: CmdBuild, format.Node, err: %v", err)
 		}
 	}
 
