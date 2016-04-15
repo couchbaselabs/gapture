@@ -188,6 +188,8 @@ func CmdBuild(args []string) {
 	for fileName, file := range convertedFiles {
 		logf("main: CmdBuild, fileName: %+v", fileName)
 
+		// convert.KillPos(file)
+
 		err := format.Node(os.Stdout, prog.Fset, file)
 		if err != nil {
 			logf("main: CmdBuild, format.Node, err: %v", err)

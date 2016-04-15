@@ -846,3 +846,40 @@ func InsertStmts(list []ast.Stmt, pos int, toInsert []ast.Stmt) []ast.Stmt {
 	rv = append(rv, list[pos:]...)
 	return rv
 }
+
+// KillPos recursively zero'es out Pos fields from an ast Node tree.
+func KillPos(x ast.Node) {
+    killPos(map[interface{}]bool{}, reflect.ValueOf(x))
+}
+
+var posType = reflect.TypeOf(token.Pos(0))
+
+// Originally from golang cmd/fix.
+func killPos(seen map[interface{}]bool, v reflect.Value) {
+	if seen[v] {
+		return
+	}
+	seen[v] = true
+
+    switch v.Kind() {
+    case reflect.Ptr, reflect.Interface:
+        if !v.IsNil() {
+            killPos(seen, v.Elem())
+	}
+    case reflect.Slice:
+        n := v.Len()
+        for i := 0; i < n; i++ {
+            killPos(seen, v.Index(i))
+        }
+    case reflect.Struct:
+        n := v.NumField()
+        for i := 0; i < n; i++ {
+            f := v.Field(i)
+	    if f.Type() == posType {
+                f.SetInt(0)
+                continue
+            }
+            killPos(seen, f)
+        }
+    }
+}
